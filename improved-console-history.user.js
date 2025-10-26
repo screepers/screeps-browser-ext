@@ -4,9 +4,9 @@
 // @match       https://screeps.com/a/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     1.1
+// @version     1.1.1
 // @author      -
-// @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple #-variables linked to the viewer's state, etc.
+// @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @downloadURL https://gist.github.com/tiennou/405f811e294efbf237725c9b27475898/raw/improved-console-history.user.js
@@ -17,9 +17,7 @@
 /**
  * Changelog:
  * - 1.0: initial release
- * - 1.1:
- *   - changed the "command" sigil from @ to # since I feel like JS hates the latter more
- *   - added a `#history [num]` command that will list the command history or execute the given one
+ * - 1.1: added a `#history [num]` command that will list the command history or execute the given one
  */
 
 /**
@@ -60,7 +58,7 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
 (() => {
     const HISTORY_STORAGE_KEY = "screeps.console-history";
     const MAX_HISTORY_SIZE = 100;
-    const COMMAND_SIGIL = "#";
+    const COMMAND_SIGIL = "@";
     /** The line we're at in the history */
     let historyIdx = -1;
     /** The thing we were currently typing */
