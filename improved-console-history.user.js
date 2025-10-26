@@ -4,7 +4,7 @@
 // @match       https://screeps.com/a/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     1.1.1
+// @version     1.2.0
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
@@ -17,7 +17,11 @@
 /**
  * Changelog:
  * - 1.0: initial release
- * - 1.1: added a `#history [num]` command that will list the command history or execute the given one
+ * - 1.1: added a `@history [num]` command that will list the command history or execute the given one
+ * - 1.2:
+ *   - added `@replay` to switch to the history view.
+ *   - added `@map` to switch to the map view.
+ *   - added `@navigate dir`/`@n dir` to move around the viewer. Takes left/right/top/bottom and a bunch of others.
  */
 
 /**
@@ -95,7 +99,45 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
             appendConsoleMessage(`Executing "${cmd}"`);
             executeCommand(cmd);
             return true;
-        }
+        },
+        "map": () => {
+            getCurrentRoom().goToMap();
+            return true;
+        },
+        "navigate": (args) => {
+            /** @type {Record<string, string[]>} */
+            const dirs = {
+                left:   ["left",   "west"],
+                right:  ["right",  "east"],
+                bottom: ["bottom", "south", "down"],
+                top:    ["top",    "north", "up"  ],
+            }
+            const dirArg = args[0];
+            if (!dirArg) {
+                appendConsoleMessage(`Missing argument for direction!`, true);
+                return true;
+            }
+            let dir;
+            for (const keyDir in dirs) {
+                const alias = dirs[keyDir].find(aliasDir => dirArg === aliasDir || dirArg[0] === aliasDir[0]);
+                if (alias) {
+                    dir = keyDir;
+                    break;
+                }
+            }
+            console.warn(`navigate: arg: "${dirArg}", dir: ${dir}`);
+            if (!dir) {
+                appendConsoleMessage(`Unknown direction "${args[0]}"!`, true);
+                return true;
+            }
+            getCurrentRoom().switchRoom(dir);
+            return true;
+        },
+        "n": (args) => CLI_CMDS["navigate"](args),
+        "replay": () => {
+            getCurrentRoom().goToHistory();
+            return true;
+        },
     }
 
     function loadHistory() {
@@ -214,9 +256,9 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
      * @param {string} line
      */
     function executeCommand(line) {
-        console.warn(`Executing "${line}"`);
-
         line = line.replace(/\r?\n/g, " ").trim();
+        if (!line.length) return;
+        console.warn(`Executing "${line}"`);
         if (parseCommand(line)) {
             return;
         }
@@ -345,13 +387,15 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
     });
 })();
 // Add a couple more things to the adapter
-Object.defineProperty(ScreepsAdapter, "Console", {
-    get: function() {
-        delete this.Console;
-        Object.defineProperty(this, "Console", {
-            value: angular.element(document.body).injector().get('Console')
-        });
-        return this.Console;
-    },
-    configurable: true
+["Console", "MapUtils"].forEach((key) => {
+    Object.defineProperty(ScreepsAdapter, key, {
+        get: function() {
+            delete this[key];
+            Object.defineProperty(this, key, {
+                value: angular.element(document.body).injector().get(key)
+            });
+            return this[key];
+        },
+        configurable: true
+    });
 });
