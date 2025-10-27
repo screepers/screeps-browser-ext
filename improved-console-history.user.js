@@ -4,7 +4,7 @@
 // @match       https://screeps.com/a/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     1.2.0
+// @version     1.3.0
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
@@ -22,6 +22,9 @@
  *   - added `@replay` to switch to the history view.
  *   - added `@map` to switch to the map view.
  *   - added `@navigate dir`/`@n dir` to move around the viewer. Takes left/right/top/bottom and a bunch of others.
+ * - 1.3:
+ *   - added `@navigate $room` to move directly to another room
+ *   - added `@navigate $num $num` to move around based on an offset
  */
 
 /**
@@ -59,6 +62,17 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
     }
 }
 
+function goToRoomName(room) {
+    try {
+        ScreepsAdapter.MapUtils.roomNameToXY(room); // throws in case of garbage
+        const router = ScreepsAdapter.$routeSegment;
+        const roomURL = router.getSegmentUrl(router.name, { room: room.toUpperCase() });
+        ScreepsAdapter.$location.url(roomURL);
+        return true;
+    } catch {}
+    return false;
+}
+
 (() => {
     const HISTORY_STORAGE_KEY = "screeps.console-history";
     const MAX_HISTORY_SIZE = 100;
@@ -88,34 +102,53 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
             const history = loadHistory();
             if (!args.length) {
                 appendConsoleMessage(`Command history:\n${history.map((h, idx) => ` - ${idx}: ${h}`).join("\n")}`);
-                return true;
+                return;
             }
             const cmdIdx = Number.parseInt(args[0], 10);
             if (cmdIdx < 0 || cmdIdx >= history.length) {
                 appendConsoleMessage(`Command index ${cmdIdx} is out of bounds!`, true);
-                return true;
+                return;
             }
             const cmd = history[cmdIdx];
             appendConsoleMessage(`Executing "${cmd}"`);
             executeCommand(cmd);
-            return true;
         },
         "map": () => {
             getCurrentRoom().goToMap();
-            return true;
         },
         "navigate": (args) => {
+            const dirArg = args[0];
+            if (!dirArg) {
+                appendConsoleMessage(`Missing argument for direction!`, true);
+                return;
+            }
+
+            // @navigate offX, offY
+            if (args.length === 2) {
+                const [offX, offY] = [Number.parseInt(args[0]), Number.parseInt(args[1])];
+                if (isNaN(offX) || isNaN(offY)) {
+                    appendConsoleMessage(`Invalid offset ${args}; both must be integers!`, true);
+                    return;
+                }
+                const [roomX, roomY] = ScreepsAdapter.MapUtils.roomNameToXY(getCurrentRoom().roomName);
+                const newRoom = ScreepsAdapter.MapUtils.getRoomNameFromXY(roomX + offX, roomY + offY);
+                if (!goToRoomName(newRoom)) {
+                    appendConsoleMessage(`Invalid room name ${newRoom} from offsets!`, true);
+                    return;
+                }
+                return;
+            }
+
+            // @navigate E5N5
+            if (goToRoomName(dirArg)) return;
+
+            // @navigate $dir
             /** @type {Record<string, string[]>} */
             const dirs = {
                 left:   ["left",   "west"],
                 right:  ["right",  "east"],
                 bottom: ["bottom", "south", "down"],
                 top:    ["top",    "north", "up"  ],
-            }
-            const dirArg = args[0];
-            if (!dirArg) {
-                appendConsoleMessage(`Missing argument for direction!`, true);
-                return true;
             }
             let dir;
             for (const keyDir in dirs) {
@@ -128,15 +161,13 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
             console.warn(`navigate: arg: "${dirArg}", dir: ${dir}`);
             if (!dir) {
                 appendConsoleMessage(`Unknown direction "${args[0]}"!`, true);
-                return true;
+                return;
             }
             getCurrentRoom().switchRoom(dir);
-            return true;
         },
         "n": (args) => CLI_CMDS["navigate"](args),
         "replay": () => {
             getCurrentRoom().goToHistory();
-            return true;
         },
     }
 
@@ -387,7 +418,7 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
     });
 })();
 // Add a couple more things to the adapter
-["Console", "MapUtils"].forEach((key) => {
+["Console", "MapUtils", "$routeSegment", "$location"].forEach((key) => {
     Object.defineProperty(ScreepsAdapter, key, {
         get: function() {
             delete this[key];
