@@ -2,9 +2,10 @@
 // @name        Screeps improved console history
 // @namespace   https://screeps.com/
 // @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     1.3.0
+// @version     1.4.0
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
@@ -25,9 +26,19 @@
  * - 1.3:
  *   - added `@navigate $room` to move directly to another room
  *   - added `@navigate $num $num` to move around based on an offset
+ * - 1.4:
+ *   - support for PTR.
+ *   - made the history size configurable through setting `screeps.history-size` in localStorage
+ *   - added `/history size [num]` to get and set the history size
+ *   - disabled snippet expansion in the console since those have a tendency of firing randomly
+ *   - changed commands to use a `/`-prefix
+ *   - added a `/help` command
  */
 
+const SICH_VERSION = "1.4.0";
+
 /**
+ * Clamp a number between a min and max value (inclusive)
  * @param {number} val
  * @param {number} min
  * @param {number} max
@@ -37,7 +48,12 @@ function clamp(val, min, max) {
     return Math.min(Math.max(val, min), max);
 }
 
-// Polls every 50 milliseconds for a given condition
+/**
+ * Polls every 50 milliseconds for a given condition
+ * @param {() => boolean} condition
+ * @param {number} [pollInterval=50]
+ * @param {number} timeoutAfter
+ */
 async function waitFor(condition, pollInterval = 50, timeoutAfter) {
     // Track the start time for timeout purposes
     const startTime = Date.now();
@@ -73,10 +89,25 @@ function goToRoomName(room) {
     return false;
 }
 
+/**
+ * Like `Number.parseInt` but works better with optional chaining
+ *
+ * @param {string | number} str
+ * @param {number} radix
+ * @returns
+ */
+function parseInt(str, radix = 10) {
+    const val = Number.parseInt(str, radix);
+    if (isNaN(val)) return null;
+    return val;
+}
+
 (() => {
     const HISTORY_STORAGE_KEY = "screeps.console-history";
-    const MAX_HISTORY_SIZE = 100;
-    const COMMAND_SIGIL = "@";
+    const HISTORY_SIZE_KEY = "screeps.history-size";
+    const VARIABLE_SIGIL = "@";
+    const COMMAND_SIGIL = "/";
+
     /** The line we're at in the history */
     let historyIdx = -1;
     /** The thing we were currently typing */
@@ -95,81 +126,157 @@ function goToRoomName(room) {
 
     /**
      * List of extended commands that can be executed
-     * @type {Record<string, (args: string[]) => void>}
+     * @type {{name: string, desc: string | [cmd, desc][], run: (args: string[]) => void, alias?: string }[]}
      */
-    const CLI_CMDS = {
-        "history": (args) => {
-            const history = loadHistory();
-            if (!args.length) {
-                appendConsoleMessage(`Command history:\n${history.map((h, idx) => ` - ${idx}: ${h}`).join("\n")}`);
-                return;
-            }
-            const cmdIdx = Number.parseInt(args[0], 10);
-            if (cmdIdx < 0 || cmdIdx >= history.length) {
-                appendConsoleMessage(`Command index ${cmdIdx} is out of bounds!`, true);
-                return;
-            }
-            const cmd = history[cmdIdx];
-            appendConsoleMessage(`Executing "${cmd}"`);
-            executeCommand(cmd);
-        },
-        "map": () => {
-            getCurrentRoom().goToMap();
-        },
-        "navigate": (args) => {
-            const dirArg = args[0];
-            if (!dirArg) {
-                appendConsoleMessage(`Missing argument for direction!`, true);
-                return;
-            }
+    const CLI_CMDS = [
+        {
+            name: "help",
+            desc: "Show this help",
+            run: () => {
+                /**
+                 * @param {[cmd, desc]} str
+                 * @returns
+                 */
+                const fmtCmd = (str) => {
+                    return `  ${COMMAND_SIGIL}${str[0]} - ${str[1]}`
+                }
+                const msg = `Screeps improved console history: version ${SICH_VERSION}\n` +
+                `Available commands:\n` +
+                CLI_CMDS.map(c => {
+                    if (c.alias) {
+                        return fmtCmd([c.name, `An alias for ${COMMAND_SIGIL}${c.alias}`]);
+                    }
+                    if (!c.desc) return;
 
-            // @navigate offX, offY
-            if (args.length === 2) {
-                const [offX, offY] = [Number.parseInt(args[0]), Number.parseInt(args[1])];
-                if (isNaN(offX) || isNaN(offY)) {
-                    appendConsoleMessage(`Invalid offset ${args}; both must be integers!`, true);
+                    const strs = (typeof c.desc === "string" ? [[c.name, c.desc]] : c.desc);
+                    const strs2 = strs.map(str => fmtCmd(str));
+                    return strs2.join("\n");
+                }).filter(c => !!c).join(`\n`);
+                appendConsoleMessage(msg);
+            }
+        },
+        {
+            name: "history",
+            desc: [
+                ["history", "Show the saved history"],
+                ["history [cmdId]", "Execute a previous entry from it"],
+                ["history clear", "Clear the history"],
+                ["history size [num]", "Set the size of the saved history"],
+            ],
+            run: (args) => {
+                const history = loadHistory();
+                if (!args.length) {
+                    const msg = `Command history (${history.length} entries):\n` +
+                        history.map((h, idx) => ` - ${idx}: ${h}`).join("\n");
+                    appendConsoleMessage(msg);
                     return;
                 }
-                const [roomX, roomY] = ScreepsAdapter.MapUtils.roomNameToXY(getCurrentRoom().roomName);
-                const newRoom = ScreepsAdapter.MapUtils.getRoomNameFromXY(roomX + offX, roomY + offY);
-                if (!goToRoomName(newRoom)) {
-                    appendConsoleMessage(`Invalid room name ${newRoom} from offsets!`, true);
+                if (args[0] === "clear") {
+                    clearHistory();
+                    appendConsoleMessage(`History cleared`, true);
                     return;
                 }
-                return;
-            }
-
-            // @navigate E5N5
-            if (goToRoomName(dirArg)) return;
-
-            // @navigate $dir
-            /** @type {Record<string, string[]>} */
-            const dirs = {
-                left:   ["left",   "west"],
-                right:  ["right",  "east"],
-                bottom: ["bottom", "south", "down"],
-                top:    ["top",    "north", "up"  ],
-            }
-            let dir;
-            for (const keyDir in dirs) {
-                const alias = dirs[keyDir].find(aliasDir => dirArg === aliasDir || dirArg[0] === aliasDir[0]);
-                if (alias) {
-                    dir = keyDir;
-                    break;
+                if (args[0] === "size") {
+                    if (args[1] === undefined) {
+                        appendConsoleMessage(`Current history size is ${getHistorySize()}`);
+                        return;
+                    }
+                    const size = parseInt(args[1]);
+                    if (size === null) {
+                        appendConsoleMessage(`Invalid size argument!`, true);
+                        return;
+                    }
+                    localStorage.setItem(HISTORY_SIZE_KEY, size);
+                    appendConsoleMessage(`Set history size to ${size}`);
+                    saveHistory(loadHistory()); // Roundabout way of enforcing the new size
+                    return;
                 }
-            }
-            console.warn(`navigate: arg: "${dirArg}", dir: ${dir}`);
-            if (!dir) {
-                appendConsoleMessage(`Unknown direction "${args[0]}"!`, true);
-                return;
-            }
-            getCurrentRoom().switchRoom(dir);
+                const cmdIdx = parseInt(args[0]);
+                if (cmdIdx < 0 || cmdIdx >= history.length) {
+                    appendConsoleMessage(`Command index ${cmdIdx} is out of bounds!`, true);
+                    return;
+                }
+                const cmd = history[cmdIdx];
+                appendConsoleMessage(`Executing "${cmd}"`);
+                executeCommand(cmd);
+            },
         },
-        "n": (args) => CLI_CMDS["navigate"](args),
-        "replay": () => {
-            getCurrentRoom().goToHistory();
+        {
+            name: "map",
+            desc: "Change the view to the map",
+            run: () => {
+                getCurrentRoom().goToMap();
+            },
         },
-    }
+        {
+            name: "navigate",
+            desc: [
+                ["navigate left|right|bottom|top", "Navigate in the given direction"],
+                ["navigate roomName", "Navigate to the given room name"],
+                ["navigate x,y", "Navigate from the current room based on an offset"],
+            ],
+            run: (args) => {
+                const dirArg = args[0];
+                if (!dirArg) {
+                    appendConsoleMessage(`Missing argument for direction!`, true);
+                    return;
+                }
+
+                // @navigate offX, offY
+                if (args.length === 2) {
+                    const [offX, offY] = [Number.parseInt(args[0]), Number.parseInt(args[1])];
+                    if (isNaN(offX) || isNaN(offY)) {
+                        appendConsoleMessage(`Invalid offset ${args}; both must be integers!`, true);
+                        return;
+                    }
+                    const [roomX, roomY] = ScreepsAdapter.MapUtils.roomNameToXY(getCurrentRoom().roomName);
+                    const newRoom = ScreepsAdapter.MapUtils.getRoomNameFromXY(roomX + offX, roomY + offY);
+                    if (!goToRoomName(newRoom)) {
+                        appendConsoleMessage(`Invalid room name ${newRoom} from offsets!`, true);
+                        return;
+                    }
+                    return;
+                }
+
+                // @navigate E5N5
+                if (goToRoomName(dirArg)) return;
+
+                // @navigate $dir
+                /** @type {Record<string, string[]>} */
+                const dirs = {
+                    left:   ["left",   "west"],
+                    right:  ["right",  "east"],
+                    bottom: ["bottom", "south", "down"],
+                    top:    ["top",    "north", "up"  ],
+                }
+                let dir;
+                for (const keyDir in dirs) {
+                    const alias = dirs[keyDir].find(aliasDir => dirArg === aliasDir || dirArg[0] === aliasDir[0]);
+                    if (alias) {
+                        dir = keyDir;
+                        break;
+                    }
+                }
+                console.warn(`navigate: arg: "${dirArg}", dir: ${dir}`);
+                if (!dir) {
+                    appendConsoleMessage(`Unknown direction "${args[0]}"!`, true);
+                    return;
+                }
+                getCurrentRoom().switchRoom(dir);
+            },
+        },
+        {
+            name: "n",
+            alias: "navigate",
+        },
+        {
+            name: "replay",
+            desc: "Open the replay view",
+            run: () => {
+                getCurrentRoom().goToHistory();
+            }
+        },
+    ];
 
     function loadHistory() {
         const history = /** @type {string[]} */ (JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) ?? "[]"));
@@ -179,6 +286,9 @@ function goToRoomName(room) {
     }
     window.loadHistory = loadHistory;
 
+    /**
+     * @param {string[]} history
+     */
     function saveHistory(history) {
         console.warn(`Saving history`, history);
         localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
@@ -191,6 +301,10 @@ function goToRoomName(room) {
         console.warn(`History cleared`);
     }
     window.clearHistory = clearHistory;
+
+    function getHistorySize() {
+        return parseInt(localStorage.getItem(HISTORY_SIZE_KEY)) ?? 100;
+    }
 
     function getCurrentRoom() {
         return angular.element(document.querySelector('.room.ng-scope')).scope().Room;
@@ -250,7 +364,7 @@ function goToRoomName(room) {
     function substituteVariables(line) {
         let hasError = false;
         for (const v in CLI_VARS) {
-            const regex = new RegExp([`(?<![\w\"'])${COMMAND_SIGIL}${v}(?![\w\"])`], "g")
+            const regex = new RegExp([`(?<![\w\"'])${VARIABLE_SIGIL}${v}(?![\w\"])`], "g")
             try {
                 let replacement = CLI_VARS[v]();
                 line = line.replaceAll(regex, replacement);
@@ -268,18 +382,25 @@ function goToRoomName(room) {
         return line;
     }
 
+    function getCommand(name) {
+        const cmd = CLI_CMDS.find(c => c.name === name);
+        if (cmd.alias) return getCommand(cmd.alias);
+        return cmd;
+    }
+
     /**
      * @param {string} line
      */
     function parseCommand(line) {
-        let [cmd, ...args] = line.split(" ");
-        if (!cmd.startsWith(COMMAND_SIGIL)) return false;
-        cmd = cmd.slice(1);
-        if (!CLI_CMDS[cmd]) {
-            appendConsoleMessage(`Unknown console command: ${COMMAND_SIGIL}${cmd}`);
+        let [cmdName, ...args] = line.split(" ");
+        if (!cmdName.startsWith(COMMAND_SIGIL)) return false;
+        cmdName = cmdName.slice(1);
+        const cmd = getCommand(cmdName);
+        if (!cmd) {
+            appendConsoleMessage(`Unknown console command: ${COMMAND_SIGIL}${cmdName}`, true);
             return true;
         }
-        CLI_CMDS[cmd](args);
+        cmd.run(args);
         return true;
     }
 
@@ -318,8 +439,8 @@ function goToRoomName(room) {
 
         console.warn(`Adding "${line}" to the history`);
         history.unshift(line);
-        if (history.length > MAX_HISTORY_SIZE) console.warn(`Too many entries ${history.length - MAX_HISTORY_SIZE}, pruning…`);
-        while (history.length > MAX_HISTORY_SIZE)
+        if (history.length > getHistorySize()) console.warn(`Too many entries ${history.length - getHistorySize()}, pruning…`);
+        while (history.length > getHistorySize())
             history.pop();
 
         saveHistory(history);
@@ -346,6 +467,9 @@ function goToRoomName(room) {
 
         const aceEditor = ace.edit(angular.element('.ace_editor')[1])
         window.aceEditor = aceEditor; // TODO: debugging
+
+        // Snippets have a tendency to activate in the middle of other things
+        aceEditor.$enableSnippets = false;
 
         console.warn(`Overriding Console methods`);
         const _sendCommand = gameConsole.sendCommand;
