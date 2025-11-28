@@ -5,13 +5,12 @@
 // @match       https://screeps.com/ptr/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     1.4.0
+// @version     1.5.0
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @downloadURL https://gist.github.com/tiennou/405f811e294efbf237725c9b27475898/raw/improved-console-history.user.js
-// @require     https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
 // @require     https://github.com/Esryok/screeps-browser-ext/raw/master/screeps-browser-core.js
 // ==/UserScript==
 
@@ -33,9 +32,26 @@
  *   - disabled snippet expansion in the console since those have a tendency of firing randomly
  *   - changed commands to use a `/`-prefix
  *   - added a `/help` command
+ * - 1.5:
+ *   - added a room navigation history tracking
  */
 
-const SICH_VERSION = "1.4.0";
+const SICH_VERSION = "1.5.0";
+
+/**
+ * @typedef CommandDefinition
+ * @property {string} name
+ * @property {string | string[]} alias
+ * @property {string | [cmd: string, desc: string][]} desc
+ * @property {(args: string[])} run
+ */
+
+/**
+ * @typedef RoomHistoryEntry
+ * @property {string} server
+ * @property {string} shard
+ * @property {string} room
+ */
 
 /**
  * Clamp a number between a min and max value (inclusive)
@@ -78,11 +94,32 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
     }
 }
 
-function goToRoomName(room) {
+/**
+ *
+ * @param {string} roomName
+ * @returns
+ */
+function goToRoomName(roomName) {
     try {
-        ScreepsAdapter.MapUtils.roomNameToXY(room); // throws in case of garbage
+        ScreepsAdapter.MapUtils.roomNameToXY(roomName); // throws in case of garbage
         const router = ScreepsAdapter.$routeSegment;
-        const roomURL = router.getSegmentUrl(router.name, { room: room.toUpperCase() });
+        const roomURL = router.getSegmentUrl(router.name, { room: roomName.toUpperCase() });
+        ScreepsAdapter.$location.url(roomURL);
+        return true;
+    } catch {}
+    return false;
+}
+
+/**
+ *
+ * @param {RoomHistoryEntry} room
+ * @returns
+ */
+function goToRoom(room) {
+    try {
+        ScreepsAdapter.MapUtils.roomNameToXY(room.room); // throws in case of garbage
+        const router = ScreepsAdapter.$routeSegment;
+        const roomURL = router.getSegmentUrl(router.name, { room: room.room.toUpperCase(), shard: room.shard });
         ScreepsAdapter.$location.url(roomURL);
         return true;
     } catch {}
@@ -103,6 +140,7 @@ function parseInt(str, radix = 10) {
 }
 
 (() => {
+    const NAVIGATION_SIZE_KEY = "screeps.room-history-size";
     const HISTORY_STORAGE_KEY = "screeps.console-history";
     const HISTORY_SIZE_KEY = "screeps.history-size";
     const VARIABLE_SIGIL = "@";
@@ -126,7 +164,7 @@ function parseInt(str, radix = 10) {
 
     /**
      * List of extended commands that can be executed
-     * @type {{name: string, desc: string | [cmd, desc][], run: (args: string[]) => void, alias?: string }[]}
+     * @type {CommandDefinition[]}
      */
     const CLI_CMDS = [
         {
@@ -212,8 +250,9 @@ function parseInt(str, radix = 10) {
             name: "navigate",
             desc: [
                 ["navigate left|right|bottom|top", "Navigate in the given direction"],
-                ["navigate roomName", "Navigate to the given room name"],
-                ["navigate x,y", "Navigate from the current room based on an offset"],
+                ["navigate <roomName>", "Navigate to the given room name"],
+                ["navigate <x>,<y>", "Navigate from the current room based on an offset"],
+                ["navigate back", "Navigate back to the previous room"],
             ],
             run: (args) => {
                 const dirArg = args[0];
@@ -233,6 +272,22 @@ function parseInt(str, radix = 10) {
                     const newRoom = ScreepsAdapter.MapUtils.getRoomNameFromXY(roomX + offX, roomY + offY);
                     if (!goToRoomName(newRoom)) {
                         appendConsoleMessage(`Invalid room name ${newRoom} from offsets!`, true);
+                        return;
+                    }
+                    return;
+                }
+
+                if (dirArg === "back") {
+                    const roomHistory = loadRoomHistory();
+                    const targetRoom = roomHistory.pop();
+                    console.warn("Navigating back to", targetRoom);
+                    if (!targetRoom) {
+                        appendConsoleMessage(`No room saved in room history!`, true);
+                        return;
+                    }
+                    saveRoomHistory(roomHistory);
+                    if (!goToRoom(targetRoom)) {
+                        appendConsoleMessage(`Invalid room ${JSON.stringify(targetRoom)} from history!`, true);
                         return;
                     }
                     return;
@@ -268,6 +323,10 @@ function parseInt(str, radix = 10) {
         {
             name: "n",
             alias: "navigate",
+        },
+        {
+            name: "b",
+            alias: ["navigate", "back"],
         },
         {
             name: "replay",
@@ -314,6 +373,49 @@ function parseInt(str, radix = 10) {
         const obj = getCurrentRoom().selectedObject;
         if (!obj) throw new Error("No object selected!");
         return obj;
+    }
+
+    const roomHistory = [];
+    function loadRoomHistory() {
+        return roomHistory;
+    }
+    window.loadRoomHistory = loadRoomHistory;
+
+    /**
+     * @param {RoomHistoryEntry[]} history
+     */
+    function saveRoomHistory(history) {
+        console.warn(`Saving room history`, history);
+        // roomHistory.splice(0, roomHistory.length, ...history);
+    }
+
+    function clearRoomHistory() {
+        roomHistory.splice(0, roomHistory.length);
+        console.warn(`Room history cleared`);
+    }
+    window.clearRoomHistory = clearRoomHistory;
+
+    function getRoomHistorySize() {
+        return parseInt(localStorage.getItem(NAVIGATION_SIZE_KEY)) ?? 100;
+    }
+
+    function trackRoomNavigation() {
+        const currentRoom = /** @type {RoomHistoryEntry} */ (angular.element(document.body).injector().get("$routeParams"));
+        console.warn(currentRoom);
+        if (!currentRoom.shard || !currentRoom.room) return;
+
+        currentRoom.server = window.location.host;
+
+        const roomHistory = loadRoomHistory();
+        const dup = roomHistory.findIndex(h => h.server === currentRoom.server && h.room == currentRoom.room && h.shard === currentRoom.shard);
+        if (dup !== -1) {
+            roomHistory.splice(dup, 1);
+        }
+        roomHistory.push({ ...currentRoom });
+        while (roomHistory.length > getRoomHistorySize())
+            roomHistory.pop();
+        console.warn(`Navigated to room ${JSON.stringify(currentRoom)}, navigation stack: ${JSON.stringify(roomHistory)}`);
+        saveRoomHistory(roomHistory);
     }
 
     const MAX_CONSOLE_MESSAGE_COUNT = 100; // From engine
@@ -382,9 +484,20 @@ function parseInt(str, radix = 10) {
         return line;
     }
 
-    function getCommand(name) {
+    /**
+     *
+     * @param {string} name
+     * @param {string[]} args
+     * @returns
+     */
+    function getCommand(name, args) {
         const cmd = CLI_CMDS.find(c => c.name === name);
-        if (cmd.alias) return getCommand(cmd.alias);
+        if (Array.isArray(cmd.alias)) {
+            args.unshift(cmd.alias[1]);
+            return getCommand(cmd.alias[0]);
+        } else if (cmd.alias) {
+            return getCommand(cmd.alias);
+        }
         return cmd;
     }
 
@@ -395,7 +508,7 @@ function parseInt(str, radix = 10) {
         let [cmdName, ...args] = line.split(" ");
         if (!cmdName.startsWith(COMMAND_SIGIL)) return false;
         cmdName = cmdName.slice(1);
-        const cmd = getCommand(cmdName);
+        const cmd = getCommand(cmdName, args);
         if (!cmd) {
             appendConsoleMessage(`Unknown console command: ${COMMAND_SIGIL}${cmdName}`, true);
             return true;
@@ -448,10 +561,10 @@ function parseInt(str, radix = 10) {
     }
 
     let timer;
-    const setup = () => {
+    const setupConsoleHistory = () => {
         const consoleEl = document.querySelector('.console.ng-scope'); // "Top.Game.Console"
         if (!consoleEl) {
-            timer = setTimeout(setup, 500);
+            timer = setTimeout(setupConsoleHistory, 500);
             return
         }
         const consoleScope = angular.element(consoleEl).scope();
@@ -537,12 +650,17 @@ function parseInt(str, radix = 10) {
             if (triggerName !== 'roomEntered') {
                 return;
             }
-            setup();
+            setupConsoleHistory();
+        });
+
+        ScreepsAdapter.onRoomChange((room) => {
+            console.warn(`Room changed: ${room}`);
+            trackRoomNavigation();
         });
     });
 })();
 // Add a couple more things to the adapter
-["Console", "MapUtils", "$routeSegment", "$location"].forEach((key) => {
+["Console", "MapUtils"].forEach((key) => {
     Object.defineProperty(ScreepsAdapter, key, {
         get: function() {
             delete this[key];
@@ -550,6 +668,15 @@ function parseInt(str, radix = 10) {
                 value: angular.element(document.body).injector().get(key)
             });
             return this[key];
+        },
+        configurable: true
+    });
+});
+
+["$routeSegment", "$location"].forEach((key) => {
+    Object.defineProperty(ScreepsAdapter, key, {
+        get: function() {
+            return angular.element(document.body).injector().get(key)
         },
         configurable: true
     });
