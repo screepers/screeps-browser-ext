@@ -114,48 +114,13 @@ window.ScreepsAdapter = window.ScreepsAdapter || {};
         configurable: true
     });
 
-    Object.defineProperty(ScreepsAdapter, "$timeout", {
-        get: function() {
-            delete this.$timeout;
-            Object.defineProperty(this, "$timeout", {
-                value: angular.element(document.body).injector().get('$timeout')
-            });
-            return this.$timeout;
-        },
-        configurable: true
+    // Define a couple properties for quick access
+    ["$timeout", "$routeSegment", "$location", "Api", "Connection", "Console", "MapUtils", "Socket"].forEach((key) => {
+        Object.defineProperty(ScreepsAdapter, key, {
+            get: function() {
+                return angular.element(document.body).injector().get(key)
+            },
+            configurable: true
+        });
     });
-
-    Object.defineProperty(ScreepsAdapter, "Connection", {
-        get: function() {
-            delete this.Connection;
-            Object.defineProperty(this, "Connection", {
-                value: angular.element(document.body).injector().get('Connection')
-            });
-            return this.Connection;
-        },
-        configurable: true
-    });
-
-    Object.defineProperty(ScreepsAdapter, "Socket", {
-        get: function() {
-            delete this.Socket;
-            Object.defineProperty(this, "Socket", {
-                value: angular.element(document.body).injector().get('Socket')
-            });
-            return this.Socket;
-        },
-        configurable: true
-    });
-
-    Object.defineProperty(ScreepsAdapter, "Api", {
-        get: function() {
-            delete this.Api;
-            Object.defineProperty(this, "Api", {
-                value: angular.element(document.body).injector().get('Api')
-            });
-            return this.Api;
-        },
-        configurable: true
-    });
-
 })(ScreepsAdapter);
