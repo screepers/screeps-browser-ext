@@ -81,23 +81,75 @@
 
     const ScreepsAdapter = {};
     ScreepsAdapter.VERSION = VERSION;
-    // Listen for changes to the main screeps view
-    // Examples: roomEntered, scriptClick, consoleClick, worldMapEntered, simulationMainMenu, gameLobby
+
+    function notifyViewWatchers(newViewName, oldViewName) {
+        /**
+        * Compatibility with the old Tutorial-based interception.
+        * Tutorial trigger names:
+        * - "sendConsole": ({command})
+        * - "consoleClick"
+        * - "scriptClick"
+        * - "submitScript": ({modules})
+        * - "survivalModeStarted"
+        * - "customModeStarted"
+        * - "gameLobby"
+        * - "controllerDowngrade": ({controller})
+        * - "objectsStart"
+        *   - "creep": ({creep})
+        *   - "controller": ({controller})
+        *   - "road": ({road})
+        *   - "constructionSite": : ({constructionSite})
+        * - "objectsEnd": ({objects})
+        * - "roomEntered"
+        * - "view": ({object})
+        * - "worldMapEntered"
+        *
+        */
+        const compatViews = {
+            "top.game-room": "roomEntered",
+            "top.game-world-map": "worldMapEntered",
+            "top.game-lobby-world.list": "gameLobby",
+            "top.game-lobby-power.list": "gameLobby",
+            "top.sim-survival": "survivalModeStarted",
+            "top.sim-custom": "customModeStarted",
+        };
+        let rootScope = angular.element(document.body).scope();
+        if (!rootScope.viewChangeCallbacks) return;
+
+        this.currentView = newViewName;
+
+        for (let i in rootScope.viewChangeCallbacks) {
+            if (compatViews[newViewName]) {
+                rootScope.viewChangeCallbacks[i](compatViews[newViewName]);
+            }
+            rootScope.viewChangeCallbacks[i](newViewName, oldViewName);
+        }
+    }
+
+    ScreepsAdapter.currentView = null;
+
+    /**
+     * Listen for changes to the main screeps view.
+     * Examples: top.game-room, top.game-world-map, etc.
+     *
+     * For backward-compatibility purposes, the previous names used as view names are still
+     * supported, but not recommended: roomEntered, scriptClick, consoleClick, worldMapEntered, gameLobby
+     *
+     * Those were actually tutorial events, and in some cases were meaningless or ambiguous.
+     *
+     * @param {(newView: string, oldView: string) => void} callback
+     */
     ScreepsAdapter.onViewChange = function (callback) {
         waitForAngular().then(() => {
             let rootScope = angular.element(document.body).scope();
             if (!rootScope.viewChangeCallbacks) {
-                let tutorial = angular.element(document.body).injector().get("Tutorial");
-                console.log("Overriding Tutorial.trigger");
+                const injector = angular.element(document.body).injector();
 
-                // intercept events as they are passed to the tutorial popup manager
-                tutorial._trigger = tutorial.trigger;
-                tutorial.trigger = function(triggerName, unknownB) {
-                    for (let i in rootScope.viewChangeCallbacks) {
-                        rootScope.viewChangeCallbacks[i](triggerName);
-                    }
-                    tutorial._trigger(triggerName, unknownB);
-                };
+                const $routeSegment = injector.get('$routeSegment');
+                rootScope.$watch(() => $routeSegment.name, (newName, oldName) => {
+                    notifyViewWatchers(newName, oldName);
+                });
+
 
                 rootScope.viewChangeCallbacks = [];
             }
