@@ -308,7 +308,7 @@ function addAllianceColumnToLeaderboard() {
 }
 
 // Entry point
-document.addEventListener("readystatechange", () => {
+ScreepsAdapter.ready(() => {
     ScreepsAdapter.onViewChange((view) => {
         if (view === "worldMapEntered") {
             ScreepsAdapter.$timeout(()=> {
