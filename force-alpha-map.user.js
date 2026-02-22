@@ -10,8 +10,8 @@
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://tiennou.github.io/screeps-browser-ext/screeps-browser-core.js
-// @downloadUrl https://tiennou.github.io/screeps-browser-ext/force-alpha-map.js
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/force-alpha-map.js
 // ==/UserScript==
 
 /**

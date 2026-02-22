@@ -10,8 +10,8 @@
 // @match        https://screeps.com/ptr/*
 // @match        http://*.localhost:*/(*)/#!/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require      https://tiennou.github.io/screeps-browser-ext/screeps-browser-core.js
-// @downloadUrl  https://tiennou.github.io/screeps-browser-ext/gui-extender.js
+// @require      https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js
+// @downloadUrl  https://screepers.github.io/screeps-browser-ext/gui-extender.js
 // ==/UserScript==
 
 // Original from https://github.com/screepers/screeps-snippets/blob/master/src/client-abuse/JavaScript/util.inject.Birthday.js

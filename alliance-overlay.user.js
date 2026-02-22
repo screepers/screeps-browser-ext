@@ -8,10 +8,10 @@
 // @match        http://*.localhost:*/(*)/#!/*
 // @run-at       document-ready
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadUrl  https://tiennou.github.io/screeps-browser-ext/alliance-overlay.user.js
+// @downloadUrl  https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js
 // @grant        GM_xmlhttpRequest
 // @require      http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js
-// @require      https://tiennou.github.io/screeps-browser-ext/screeps-browser-core.js
+// @require      https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
 
