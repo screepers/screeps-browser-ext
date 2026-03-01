@@ -4,7 +4,7 @@
 // @name         Screeps GUI Extender
 // @description  Extends the Screeps GUI with additional information and controls
 // @namespace    https://screeps.com/
-// @version      0.0.3
+// @version      0.0.4
 // @author       Dr. Dvorak
 // @author       James Cook
 // @tag          games
