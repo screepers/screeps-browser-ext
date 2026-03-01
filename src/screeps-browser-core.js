@@ -83,6 +83,14 @@
     ScreepsAdapter.VERSION = VERSION;
 
     /**
+     * Polls every 50 milliseconds for a given condition
+     * @param {() => boolean} condition
+     * @param {number} [pollInterval=50]
+     * @param {number} timeoutAfter
+     */
+    ScreepsAdapter.waitFor = waitFor;
+
+    /**
      * Execute a callback once Angular's ready
      * @param {() => void} callback - A callback to execute
      */

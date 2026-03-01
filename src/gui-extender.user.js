@@ -4,7 +4,7 @@
 // @name         Screeps GUI Extender
 // @description  Extends the Screeps GUI with additional information and controls
 // @namespace    https://screeps.com/
-// @version      0.0.2
+// @version      0.0.3
 // @author       Dr. Dvorak
 // @author       James Cook
 // @tag          games
@@ -31,7 +31,7 @@
  * - WorldMap:
  *   - Hide client update notification (due to false positive on PTR)
  * - Room:
- *   - Display Console tab by default instead of Script tab on room views
+ *   - Reopen the last open tab instead of Script on room views, defaulting to Console
  *   - Increase Console font size
  *   - Add button to toggle Console dock between bottom and left sides
  *   - Auto-collapse World Room accordion tab on right column
@@ -196,25 +196,47 @@ ScreepsAdapter.ready(() => {
   // Disabled in public version since not all users will want this behavior
   //updatePtrShardCpuLimits();
 
-  /**
-   * Activate a specific bottom nav tab
-   * @param tabName: 'script' | 'console' | 'memory'
-   */
-  function selectNavTab(tabName) {
-    angular.element('.nav-tabs .ng-scope').controller().activeTab = tabName;
+  function waitForNavTab() {
+    return ScreepsAdapter.waitFor(() => document.querySelectorAll('.editor-panel .nav-tabs li[name]').length !== 0);
   }
 
-  // Change default bottom nav tab to Console in Room view
-  window.shouldOverrideScriptClick = false;
-  ScreepsAdapter.onViewChange((triggerName) => {
-    if (triggerName === 'roomEntered') {
-      window.shouldOverrideScriptClick = true;
-      return;
-    }
+  /**
+   * Activate a specific bottom nav tab
+   * @param {'script' | 'console' | 'memory'} tabName
+   */
+  async function selectNavTab(tabName) {
+    await waitForNavTab();
 
-    if (triggerName === 'scriptClick' && window.shouldOverrideScriptClick) {
-      window.shouldOverrideScriptClick = false;
-      selectNavTab('console');
+    const panelEl = document.querySelector('.editor-panel');
+    const scope = angular.element(panelEl).scope();
+
+    scope.$evalAsync(() => {
+      scope.EditorPanel.activeTab = tabName;
+    });
+  }
+
+  // Track which tab was clicked last
+  async function listenToNavTabChanges() {
+    await waitForNavTab();
+    const panel = document.querySelector('.editor-panel');
+    const scope = angular.element(panel).scope();
+
+    scope.$watch(
+      () => scope.EditorPanel.activeTab,
+      (newVal, oldVal) => {
+        if (!newVal || newVal === oldVal) return;
+        setSetting('game.editor.tab', newVal);
+      }
+    );
+  }
+  listenToNavTabChanges();
+
+  // Reopen last selected tab in room view
+  ScreepsAdapter.onViewChange((triggerName) => {
+    if (triggerName === 'top.game-room') {
+      const lastTab = getSetting('game.editor.tab', 'console');
+      selectNavTab(lastTab);
+      return;
     }
   });
 
@@ -280,6 +302,23 @@ ScreepsAdapter.ready(() => {
   }
   addMmoPtrToggleLink();
 
+  function getSetting(name, defaultValue) {
+    const isPtr = angular.element('body').scope().ptr;
+    const isSeason = /\/season/.test(window.location.pathname);
+    const key = `${isPtr ? 'ptr:' : isSeason ? 'season:' : ''}${name}`;
+    const value = localStorage.getItem(key) ?? defaultValue;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  }
+
+  function setSetting(name, value) {
+    const isPtr = angular.element('body').scope().ptr;
+    const isSeason = /\/season/.test(window.location.pathname);
+    const key = `${isPtr ? 'ptr:' : isSeason ? 'season:' : ''}${name}`;
+    return localStorage.setItem(key, value);
+  }
+
   // Customize editor panel and add docking side toggle button
   function customizeEditorPanel() {
     const aceEditor = angular.element('.console-input .ace_editor');
@@ -292,20 +331,7 @@ ScreepsAdapter.ready(() => {
       return
     }
 
-    // Local storage keys
-    // TODO: Add an abstraction for this
-    const isPtr = angular.element('body').scope().ptr;
-    const fontSizeKey = `${isPtr ? 'ptr:' : ''}console.fontSize`;
-    const wordWrapKey = `${isPtr ? 'ptr:' : ''}console.wordWrap`;
-    const dockSideKey = `${isPtr ? 'ptr:' : ''}game.editor.dockSide`;
-    const minimizedKey = `${isPtr ? 'ptr:' : ''}game.editor.hidden`;
-    const heightKey = `${isPtr ? 'ptr:' : ''}game.editor.height`;
-    const widthKey = `${isPtr ? 'ptr:' : ''}game.editor.width`;
-
-    if (!localStorage.getItem(fontSizeKey)) {
-      localStorage.setItem(fontSizeKey, 12);
-    }
-    let fontSize = parseInt(localStorage.getItem(fontSizeKey));
+    let fontSize = parseInt(getSetting('console.fontSize', 12));
 
     // Add styling
     $('body').append(`<style type='text/css'>
@@ -381,12 +407,11 @@ ScreepsAdapter.ready(() => {
       const editorPanelElem = editorPanel[0];
       const roomElem = angular.element('section.room')[0];
 
-      localStorage.setItem(dockSideKey, dockingSide);
+      setSetting('game.editor.dockSide', dockingSide);
 
       if (dockingSide === "left") {
         // Dock panel to left
-        const editorWidth = localStorage.getItem(widthKey) || Math.floor(window.screen.width * 0.4).toString();
-        localStorage.setItem(widthKey, editorWidth);
+        const editorWidth = getSetting('game.editor.width', Math.floor(window.screen.width * 0.4).toString());
         editorPanelElem.style.width = `${editorWidth}px`;
         editorPanelElem.style.height = '100%';
         roomElem.style.left = `${parseInt(editorWidth) + 5}px`;
@@ -407,7 +432,7 @@ ScreepsAdapter.ready(() => {
         dockToggleButton.attr('title', dockBottomTitle);
       } else if (dockingSide === "bottom") {
         // Dock panel to bottom
-        const editorHeight = localStorage.getItem(heightKey);
+        const editorHeight = getSetting('game.editor.height');
         editorPanelElem.style.width = '100%';
         editorPanelElem.style.height = `${editorHeight}px`;
         roomElem.style.left = '0';
@@ -433,7 +458,7 @@ ScreepsAdapter.ready(() => {
       angular.element('section.room').scope().$broadcast('resize', { sameSize: !0 });
 
       // Update minimized state
-      localStorage.setItem(minimizedKey, false);
+      setSetting('game.editor.hidden', false);
       $('.btn-panel-toggle').removeClass('minimized');
     };
     dockToggleButton.on('click', (e) => {
@@ -441,7 +466,7 @@ ScreepsAdapter.ready(() => {
         "left": "bottom",
         "bottom": "left",
       };
-      updatePanelDocking(cycleSide[localStorage.getItem(dockSideKey)] ?? "bottom");
+      updatePanelDocking(cycleSide[getSetting('game.editor.dockSide', 'bottom')]);
     });
 
     // Update popup/minimize buttons to force dock to bottom before triggering
@@ -467,7 +492,7 @@ ScreepsAdapter.ready(() => {
         e.stopImmediatePropagation();
         e.preventDefault();
         const editorWidth = e.clientX;
-        localStorage.setItem(widthKey, editorWidth);
+        setSetting('game.editor.width', editorWidth);
         editorPanelElem.style.width = `${editorWidth}px`;
         roomElem.style.left = `${editorWidth + 5}px`;
         angular.element('section.room').scope().$broadcast('resize', { sameSize: !0 });
@@ -486,8 +511,8 @@ ScreepsAdapter.ready(() => {
     });
 
     // Initialize editor panel docking state
-    if (!(localStorage.getItem(minimizedKey) === "true")) {
-      setTimeout(() => { updatePanelDocking(localStorage.getItem(dockSideKey)); }, 0);
+    if (!getSetting('game.editor.hidden', false)) {
+      setTimeout(() => { updatePanelDocking(getSetting('game.editor.dockSide', 'bottom')); }, 0);
     } else {
       angular.element('.resize-handle-horizontal').hide();
     }
@@ -512,7 +537,7 @@ ScreepsAdapter.ready(() => {
     wordWrapElem.insertAfter(angular.element('.console-controls button')[0]);
 
     const updateWordWrap = () => {
-      const enabled = (localStorage.getItem(wordWrapKey) === "true");
+      const enabled = getSetting('console.wordWrap', true);
       const [listMethod, buttonMethod] = enabled ?
         ['addClass', 'hide'] :
         ['removeClass', 'show'];
@@ -520,7 +545,7 @@ ScreepsAdapter.ready(() => {
       angular.element('button svg .word-wrap-disabled')[buttonMethod]();
     }
     wordWrapElem.on('click', (e) => {
-      localStorage.setItem(wordWrapKey, !(localStorage.getItem(wordWrapKey) === "true"));
+      setSetting('console.wordWrap', getSetting('console.wordWrap', true));
       updateWordWrap();
     });
     updateWordWrap();
@@ -559,7 +584,7 @@ ScreepsAdapter.ready(() => {
 
     const updateFontSize = (delta) => {
       fontSize += delta;
-      localStorage.setItem(fontSizeKey, `${fontSize}px`);
+      setSetting('console.fontSize', `${fontSize}px`);
       angular.element('#console-font-size').remove();
       $('body').append(`<style id='console-font-size' type='text/css'>
         /* Increase console font size */
@@ -616,13 +641,10 @@ ScreepsAdapter.ready(() => {
       }
 
       if (isHistoryViewActive) {
-        const isPtr = angular.element('body').scope().ptr;
-        const dockLeftKey = `${isPtr ? 'ptr:' : ''}game.editor.dockLeft`;
-        const widthKey = `${isPtr ? 'ptr:' : ''}game.editor.width`;
-        const toggled = (localStorage.getItem(dockLeftKey) === "true");
+        const toggled = getSetting('game.editor.dockLeft', false);
         if (toggled) {
           setTimeout(() => {
-            const editorWidth = localStorage.getItem(widthKey) || Math.floor(window.screen.width * 0.4).toString();
+            const editorWidth = getSetting('game.editor.width', Math.floor(window.screen.width * 0.4).toString());
             angular.element('section.room')[0].style.left = `${parseInt(editorWidth) + 5}px`;
             angular.element('section.room')[0].style.bottom = '0';
             angular.element('section.room').scope().$broadcast('resize', { sameSize: !0 });
