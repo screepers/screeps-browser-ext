@@ -3,6 +3,7 @@
 // @namespace   https://screeps.com/
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
 // @version     1.5.0

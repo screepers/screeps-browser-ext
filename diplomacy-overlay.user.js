@@ -5,6 +5,7 @@
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
+// @match        https://screeps.com/season/*
 // @match        http://*.localhost:*/(*)/#!/*
 // @run-at       document-ready
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
