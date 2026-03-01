@@ -8,6 +8,7 @@
 // @grant        none
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
+// @match        https://screeps.com/season/*
 // @match        http://*.localhost:*/(*)/#!/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require      REPO_URL/screeps-browser-core.js
