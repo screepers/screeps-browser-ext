@@ -15,7 +15,7 @@
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
 
-const loanBaseUrl = "http://www.leagueofautomatednations.com";
+const loanBaseUrl = "https://www.leagueofautomatednations.com";
 
 let allianceData;
 let userAlliance;
