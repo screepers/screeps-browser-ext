@@ -1,10 +1,8 @@
-/* globals angular, $, _ */
-
 // ==UserScript==
 // @name         Screeps GUI Extender
 // @description  Extends the Screeps GUI with additional information and controls
 // @namespace    https://screeps.com/
-// @version      0.0.4
+// @version      0.0.5
 // @author       Dr. Dvorak
 // @author       James Cook
 // @tag          games
@@ -747,8 +745,8 @@ ScreepsAdapter.ready(() => {
     angular.element('.gpl-display').remove();
 
     // Wait for relevant views/scopes to be ready
-    const targetElem = angular.element('.navbar-resources.--flex.ng-scope .--color-text-80.ng-scope');
-    const viewScope = targetElem.scope() && targetElem.scope().$parent;
+    const targetElem = angular.element('.navbar-resources.--flex.ng-scope');
+    const viewScope = targetElem.scope();
     const compile = ScreepsAdapter.$compile;
     if (!viewScope || !compile) {
       setTimeout(initGplDisplay, 50);
@@ -762,16 +760,16 @@ ScreepsAdapter.ready(() => {
       const me = Me();
       const level = me.getPowerLevel();
       const toCurrent = level ? Math.round(multiply * Math.pow(level, pow)) : 0;
-      const progress = me.power - toCurrent;
-      const progressTotal = Math.round(multiply * Math.pow(level + (level ? 1 : 0), pow)) - toCurrent;
+      const progress = (me.power || 0) - toCurrent;
+      const progressTotal = Math.round(multiply * Math.pow(level + 1, pow)) - toCurrent;
       return `${(progress || 0).toLocaleString()} / ${(progressTotal || 0).toLocaleString()}`;
     };
     viewScope.getPowerLevelFloat = (Me) => {
       const me = Me();
       const level = me.getPowerLevel();
       const toCurrent = level ? Math.round(multiply * Math.pow(level, pow)) : 0;
-      const progress = me.power - toCurrent;
-      const progressTotal = Math.round(multiply * Math.pow(level + (level ? 1 : 0), pow)) - toCurrent;
+      const progress = (me.power || 0) - toCurrent;
+      const progressTotal = Math.round(multiply * Math.pow(level + 1, pow)) - toCurrent;
       const progressFloat = level + Math.floor((progress / progressTotal) * 1000) / 1000;
       return progressFloat.toFixed(3);
     };
@@ -785,7 +783,7 @@ ScreepsAdapter.ready(() => {
       </div>
     `);
     compile(newElem)(viewScope);
-    newElem.insertBefore(targetElem[0]);
+    newElem.prependTo(targetElem[0]);
   }
   initGplDisplay();
 
@@ -795,8 +793,8 @@ ScreepsAdapter.ready(() => {
     angular.element('.gcl-display').remove();
 
     // Wait for relevant views/scopes to be ready
-    const targetElem = angular.element('.navbar-resources.--flex.ng-scope .--color-text-80.ng-scope');
-    const viewScope = targetElem.scope() && targetElem.scope().$parent;
+    const targetElem = angular.element('.navbar-resources.--flex.ng-scope');
+    const viewScope = targetElem.scope();
     const compile = ScreepsAdapter.$compile;
     if (!viewScope || !compile) {
       setTimeout(initGclDisplay, 50);
@@ -833,7 +831,7 @@ ScreepsAdapter.ready(() => {
       </div>
     `);
     compile(newElem)(viewScope);
-    newElem.insertBefore(targetElem[0]);
+    newElem.prependTo(targetElem[0]);
   }
   initGclDisplay();
 
