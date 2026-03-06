@@ -1,44 +1,57 @@
 // ==UserScript==
-// @name         Console Shard Coloring
-// @namespace    https://screeps.com/
-// @version      1.1
-// @description  This tweaks the background colors of console logs from each shard to improve clarity
-// @author       Traxus
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        http://*.localhost:*/(*)/#!/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadUrl  https://screepers.github.io/screeps-browser-ext/console-shard-color.js
+// @name        Console Shard Coloring
+// @namespace   https://screeps.com/
+// @version     1.1
+// @description This tweaks the background colors of console logs from each shard to improve clarity
+// @author      Traxus
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       http://*.localhost:*/(*)/#!/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/console-shard-color.js?v=1772834456225
 // ==/UserScript==
+
+
 
 (function() {
     'use strict';
 
     log("TamperMonkey - Loaded Console Shard Coloring");
 
+    /**
+     * @param  {...any} args
+     */
     function log(...args) {
         console.warn(...args);
     }
 
     /**
      * Takes a string of the form #rgb or #rrggbb and splits it into its components
+     * @param {string} h
+     * @returns {RGBColor}
      */
     function convertHexToRGB(h) {
         let r = 0, g = 0, b = 0;
 
         if (h.length == 4) {
-            r = "0x" + h[1] + h[1];
-            g = "0x" + h[2] + h[2];
-            b = "0x" + h[3] + h[3];
+            r = parseInt(h[1] + h[1], 16);
+            g = parseInt(h[2] + h[2], 16);
+            b = parseInt(h[3] + h[3], 16);
         } else if (h.length == 7) {
-            r = "0x" + h[1] + h[2];
-            g = "0x" + h[3] + h[4];
-            b = "0x" + h[5] + h[6];
+            r = parseInt(h[1] + h[2], 16);
+            g = parseInt(h[3] + h[4], 16);
+            b = parseInt(h[5] + h[6], 16);
         }
         return [+r, +g, +b];
     }
 
+    /**
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @returns
+     */
     function convertRGBToHex(r, g, b) {
         return "#"
             + (+r).toString(16).padStart(2, "0")
@@ -46,6 +59,12 @@
             + (+b).toString(16).padStart(2, "0");
     }
 
+    /**
+     * @param {number} r
+     * @param {number} g
+     * @param {number} b
+     * @returns {HSLColor}
+     */
     function convertRGBToHSL(r,g,b) {
         // Make r, g, and b fractions of 1
         r /= 255;
@@ -94,6 +113,12 @@
         return [h, s, l];
     }
 
+    /**
+     * @param {number} h
+     * @param {number} s
+     * @param {number} l
+     * @returns {RGBColor}
+     */
     function convertHSLToRGB(h,s,l) {
         // Must be fractions of 1
         s /= 100;
@@ -129,6 +154,10 @@
         return [r, g, b];
     }
 
+    /**
+     * @param {string} message
+     * @returns
+     */
     async function digestMessage(message) {
         const msgUint8 = new TextEncoder().encode(message); // encode as (utf-8) Uint8Array
         const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8); // hash the message
@@ -173,6 +202,7 @@
 
     /**
      * Get a color from a shard name
+     * @param {string} shardName
      */
     async function colorForShard(shardName) {
         // Default background color
@@ -205,9 +235,9 @@
 
     async function loop() {
 
-        const messages = document.getElementsByClassName("console-message");
+        const messages = /** @type {HTMLCollectionOf<HTMLElement>} */ (document.getElementsByClassName("console-message"));
         for (const msg of messages) {
-            const shardElm = msg.getElementsByClassName("shard")[0];
+            const shardElm = /** @type {HTMLElement} */ (msg.getElementsByClassName("shard")[0]);
             const shardName = shardElm?.innerText.match(/^\[(.*)\]$/)?.[1];
             if (shardName){
                 const bgColor = await colorForShard(shardName);

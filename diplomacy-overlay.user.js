@@ -1,18 +1,22 @@
 // ==UserScript==
-// @name         Screeps diplomacy overlay
-// @namespace    https://screeps.com/
-// @version      0.2.2
-// @author       James Cook
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        https://screeps.com/season/*
-// @match        http://*.localhost:*/(*)/#!/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require      https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js
-// @downloadUrl  https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js
+// @name        Screeps diplomacy overlay
+// @namespace   https://screeps.com/
+// @version     0.2.3
+// @author      James Cook
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @match       http://*.localhost:*/(*)/#!/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1772834456225
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1772834456225
 // ==/UserScript==
 
+
+// @ts-nocheck
+
+/** @type {{ [userId: string]: RGBColor }} */
 let colorMap = {
     2: [255, 150, 0],
     3: [255, 150, 0],
@@ -26,6 +30,13 @@ let colorMap = {
     s: [255, 242, 70]
 };
 
+/**
+ *
+ * @param {number} hue
+ * @param {number} saturation
+ * @param {number} lightness
+ * @returns {RGBColor | undefined}
+ */
 function generateColor(hue, saturation, lightness) {
     for (let i = 0; i < 100; i++) {
         let color = hslToRGB(
@@ -33,13 +44,23 @@ function generateColor(hue, saturation, lightness) {
             .1 * Math.round(.2 * Math.random() / .1) + saturation,
             .1 * Math.round(.2 * Math.random() / .1) + lightness
         );
-        if (!_.some(colorMap, (existing) => _.eq(color)))
+        if (!_.some(colorMap, (existing) => _.eq(existing, color)))
             return color;
     }
 }
 
+/** @type {RGBColor} */
 const userColor = [0, 255, 0];
+/** @type {RGBColor} */
 const zombieColor = [128, 128, 128];
+
+/**
+ *
+ * @param {number} a
+ * @param {number} b
+ * @param {number} c
+ * @returns {HSLColor}
+ */
 function hslToRGB(a, b, c) {
     0 > a && (a += 360);
     var d, e, f, g = (1 - Math.abs(2 * c - 1)) * b, h = a / 60, i = g * (1 - Math.abs(h % 2 - 1));
@@ -66,6 +87,11 @@ function hslToRGB(a, b, c) {
     [j, k, l]
 }
 
+/**
+ * @param {string} userid
+ * @param {string} userName
+ * @returns
+ */
 function generateAndSetColor(userid, userName) {
     let color;
     let diplomacyScore;
@@ -85,9 +111,13 @@ function generateAndSetColor(userid, userName) {
     return color;
 }
 
+/**
+ * @param {string} type
+ */
 function getColor(type) {
     let color = colorMap[type];
     if (!color) {
+        /** @type {{[type: string]: { username: string }}} */
         let userMap = {};
         if (angular.element('.world-map').length) {
             let worldMap = angular.element('.world-map').scope().WorldMap;
@@ -107,6 +137,13 @@ function getColor(type) {
     return color;
 }
 
+/**
+ *
+ * @param {any} image
+ * @param {any[]} positions
+ * @param {RGBColor} color
+ * @param {number} mapScale
+ */
 function colorPositions(image, positions, color, mapScale) {
     if (positions && positions.length) {
         for (var e = 0; mapScale > e; e++) {
@@ -123,7 +160,14 @@ function colorPositions(image, positions, color, mapScale) {
 }
 
 let diplomacyDataLoaded = false;
+/**
+ * @type {{ users: Record<string, { state: number }> }}
+ */
 let diplomacyData;
+/**
+ *
+ * @param {() => void} callback
+ */
 function ensureDiplomacyData(callback) {
     ScreepsAdapter.Connection.getMemoryByPath(ScreepsAdapter.User._id, "diplomacy").then((data) => {
         diplomacyDataLoaded = true;
@@ -137,6 +181,13 @@ function ensureDiplomacyData(callback) {
     });
 }
 
+/**
+ *
+ * @param {any} scope
+ * @param {HTMLCanvasElement} element
+ * @param {*} roomHandle
+ * @param {*} mapScale
+ */
 function prepareRoomObjects(scope, element, roomHandle, mapScale) {
     let graphics = element.getContext("2d");
     element.listenerEvent = ScreepsAdapter.Socket.bindEventToScope(scope, `roomMap2:${roomHandle}`, function(objects) {
@@ -304,7 +355,7 @@ function bindRoomStatsMonitor() {
 }
 
 // Entry point
-document.addEventListener("readystatechange", () => {
+ScreepsAdapter.ready(() => {
     DomHelper.addStyle(`
         .room-objects { display: none; }
     `);

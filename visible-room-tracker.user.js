@@ -1,20 +1,22 @@
 // ==UserScript==
-// @name         Screeps visible room tracker
-// @namespace    https://screeps.com/
-// @version      0.1.2
-// @author       James Cook
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        https://screeps.com/season/*
-// @match        http://*.localhost:*/(*)/#!/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require      https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js
-// @downloadUrl  https://screepers.github.io/screeps-browser-ext/visible-room-tracker.user.js
+// @name        Screeps visible room tracker
+// @namespace   https://screeps.com/
+// @version     0.1.3
+// @author      James Cook
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @match       http://*.localhost:*/(*)/#!/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1772834456228
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/visible-room-tracker.user.js?v=1772834456228
 // ==/UserScript==
 
+
+
 // Entry point
-document.addEventListener("load", () => {
+ScreepsAdapter.ready(() => {
     let monitorRunning = false;
     ScreepsAdapter.onRoomChange(function (roomName) {
         console.log("Visible room changed to:", roomName);
@@ -51,17 +53,22 @@ document.addEventListener("load", () => {
         }
 
         if (roomName && roomName !== "sim") {
-            ScreepsAdapter.Connection.getMemoryByPath(null, "rooms." + roomName).then((baseRoomData) => {
-                if (!baseRoomData) {
-                    ScreepsAdapter.Connection.setMemoryByPath(
-                        null,
-                        "rooms." + roomName,
-                        {}
-                    ).then(ensureRoomMonitor);
-                } else {
-                    ensureRoomMonitor();
+            ScreepsAdapter.Connection.getMemoryByPath(null, "rooms." + roomName).then(
+                /**
+                 * @param {any} baseRoomData
+                 */
+                (baseRoomData) => {
+                    if (!baseRoomData) {
+                        ScreepsAdapter.Connection.setMemoryByPath(
+                            null,
+                            "rooms." + roomName,
+                            {}
+                        ).then(ensureRoomMonitor);
+                    } else {
+                        ensureRoomMonitor();
+                    }
                 }
-            });
+            );
         } else {
             monitorRunning = false;
         }

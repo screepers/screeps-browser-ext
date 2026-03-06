@@ -1,20 +1,25 @@
 // ==UserScript==
-// @name         Migrate room to simulator
-// @namespace    https://screeps.com/
-// @version      1.4
-// @author       Mark Bertels, Esryok
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        https://screeps.com/season/*
-// @match        http://*.localhost:*/(*)/#!/*
-// @run-at       context-menu
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @grant        none
-// @downloadUrl  https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js
+// @name        Migrate room to simulator
+// @namespace   https://screeps.com/
+// @version     1.4.1
+// @author      Mark Bertels, Esryok
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @match       http://*.localhost:*/(*)/#!/*
+// @run-at      context-menu
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @grant       none
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js?v=1772834456228
 // ==/UserScript==
 
+
+
+/**
+ * @param {any[]} terrain
+ */
 function applyTerrain(terrain) {
-    var roomElement = angular.element(document.querySelector('section.room'));
+    var roomElement = angular.element('section.room');
     var room = roomElement.scope().Room;
     var injector = roomElement.injector();
 
@@ -24,17 +29,21 @@ function applyTerrain(terrain) {
     var roomTerrainData = _.find(terrainObj, { room: "sim" });
     roomTerrainData.terrain = terrain;
 
-    var connection = injector.get("Connection");
-    connection.getRoomTerrain().then((data) => {
+    ScreepsAdapter.Connection.getRoomTerrain().then((data) => {
         room.terrain = data;
     });
 }
 
+/**
+ *
+ * @param {any} roomData
+ * @returns
+ */
 function adjustRoomDataForCustomMode(roomData) {
     var gameElement = angular.element(document.body);
     var memory = gameElement.injector().get("MemoryStorage");
 
-    let currentTime = angular.element(document.querySelector('section.room')).scope().Room.gameTime;
+    let currentTime = angular.element('section.room').scope().Room.gameTime;
     console.log("current time is", currentTime);
 
     let forceUser = gameElement.injector().get("Auth").Me;
@@ -63,6 +72,7 @@ function adjustRoomDataForCustomMode(roomData) {
 
 function migrateRoomToSimulation() {
     var open = window.open;
+    // @ts-expect-error
     window.open = () => {
         return {
             document: {
@@ -79,7 +89,7 @@ function migrateRoomToSimulation() {
                         if (newVal === 1) {
                             console.log("Sim room ready");
                             try {
-                                var roomScope_1 = angular.element(document.querySelector('section.room')).scope();
+                                var roomScope_1 = angular.element('section.room').scope();
                                 var room_1 = roomScope_1.Room;
                                 console.log("Applying terrain...");
                                 applyTerrain(roomData.terrain[0].terrain);
@@ -100,12 +110,12 @@ function migrateRoomToSimulation() {
         };
     };
 
-    var roomScope = angular.element(document.querySelector('section.room')).scope();
+    var roomScope = angular.element('section.room').scope();
     var room = roomScope.Room;
     room.save();
 }
 
-document.addEventListener("readystatechange", () => {
+ScreepsAdapter.ready(() => {
     // push the load to the end of the event queue
     setTimeout(migrateRoomToSimulation);
 });

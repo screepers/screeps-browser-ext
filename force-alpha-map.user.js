@@ -6,44 +6,16 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     0.0.1
+// @version     0.0.2
 // @author      -
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/force-alpha-map.js
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1772834456226
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/force-alpha-map.js?v=1772834456226
 // ==/UserScript==
 
-/**
- * Polls every 50 milliseconds for a given condition
- * @param {() => boolean} condition
- * @param {number} [pollInterval=50]
- * @param {number} timeoutAfter
- */
-async function waitFor(condition, pollInterval = 50, timeoutAfter) {
-    // Track the start time for timeout purposes
-    const startTime = Date.now();
 
-    while (true) {
-        // Check for timeout, bail if too much time passed
-        if(typeof(timeoutAfter) === 'number' && Date.now() > startTime + timeoutAfter) {
-            throw 'Condition not met before timeout';
-        }
-
-        // Check for condition immediately
-        const result = await condition();
-
-        // If the condition is met...
-        if(result) {
-            // Return the result....
-            return result;
-        }
-
-        // Otherwise wait and check after pollInterval
-        await new Promise(r => setTimeout(r, pollInterval));
-    }
-}
 
 (() => {
     const MAP_LAYERS = {
@@ -57,25 +29,34 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
         decorations: "decorations",
     };
 
+    /**
+     * @param {string} setting
+     */
     function getSetting(setting) {
         const item = window.localStorage.getItem(`screeps.alpha-map.${setting}`);
         return item !== null ? JSON.parse(item) : null;
     }
 
+    /**
+     *
+     * @param {string} setting
+     * @param {any} value
+     */
     function setSetting(setting, value) {
         window.localStorage.setItem(`screeps.alpha-map.${setting}`, value);
     }
 
     function getMapComponent() {
+        // @ts-expect-error
         return ng.probe(document.querySelector("app-world-map-map"))?.componentInstance;
     }
 
     function getCurrentRoom() {
-        return angular.element(document.querySelector('.room.ng-scope')).scope()?.Room;
+        return angular.element('.room.ng-scope').scope()?.Room;
     }
 
     async function overrideRoom() {
-        await waitFor(() => getCurrentRoom());
+        await ScreepsAdapter.waitFor(() => getCurrentRoom());
         getCurrentRoom().goToMap = function () {
             const router = ScreepsAdapter.$routeSegment;
             const roomCoords = ScreepsAdapter.MapUtils.roomNameToXY(router.$routeParams.room);
@@ -91,10 +72,15 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
     }
 
     async function overrideMap() {
-        await waitFor(() => getMapComponent());
+        await ScreepsAdapter.waitFor(() => getMapComponent());
         const map = getMapComponent().screepsMap._mapContainer;
         if (map._toggleLayer) return;
         map._toggleLayer = map.toggleLayer;
+        /**
+         *
+         * @param {keyof typeof MAP_LAYERS} layer
+         * @param {boolean} state
+         */
         map.toggleLayer = function (layer, state) {
             if (layer === MAP_LAYERS.units) {
                 setSetting("units", state);
@@ -107,19 +93,27 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
             }
             map._toggleLayer(layer, state);
         }
+        /**
+         * @param {boolean} state
+         */
         map.toggleUnitsLayer = function (state) {
             map.toggleLayer(MAP_LAYERS.units, state);
         }
+        /**
+         * @param {boolean} state
+         */
         map.toggleStatsLayer = function (state) {
             map.toggleLayer(MAP_LAYERS.stats, state);
         }
+        /**
+         * @param {boolean} state
+         */
         map.toggleUsersLayer = function (state) {
             map.toggleLayer(MAP_LAYERS.users, state);
         }
     }
 
-    document.addEventListener("readystatechange", async () => {
-        await waitFor(() => angular.element(document.body).scope() !== undefined);
+    ScreepsAdapter.ready(async () =>{
         console.warn("AlphaMap: Loaded");
 
         ScreepsAdapter.onViewChange(async (triggerName) => {
@@ -134,7 +128,7 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
                 ScreepsAdapter.$location.url(url);
             } else if (triggerName === "top.map2shard") {
                 // Restore alpha map settings; not sure why it's not doing that automatically but hey
-                await waitFor(() => getMapComponent());
+                await ScreepsAdapter.waitFor(() => getMapComponent());
                 overrideMap();
                 getMapComponent().toggleLayer(MAP_LAYERS.units, getSetting("units") ?? true)
                 getMapComponent().toggleLayer(MAP_LAYERS.visual, getSetting("visual") ?? true)
