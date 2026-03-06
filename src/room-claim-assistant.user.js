@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Screeps room claim assistant
 // @namespace    https://screeps.com/
-// @version      0.1.6
+// @version      0.1.7
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
@@ -13,19 +13,38 @@
 // @downloadUrl  REPO_URL/room-claim-assistant.user.js
 // ==/UserScript==
 
+/**
+ * @typedef RoomObjectCounts
+ * @property {any[]} s
+ * @property {any[]} c
+ */
+
+/** @type {Record<string, RoomObjectCounts>} */
 let roomObjectCounts = {};
+
+/**
+ *
+ * @param {string} shardName
+ * @param {string} roomName
+ * @param {(counts: RoomObjectCounts) => void} callback
+ */
 function getRoomObjectCounts(shardName, roomName, callback) {
     let scope = angular.element(document.body).scope();
     if (roomObjectCounts[roomName]) {
         callback(roomObjectCounts[roomName]);
     } else {
         //console.log("Bind socket event", roomName)
-        let eventFunc = ScreepsAdapter.Socket.bindEventToScope(scope, `roomMap2:${shardName}/${roomName}`, function(objectCounts) {
-            roomObjectCounts[roomName] = objectCounts;
-            eventFunc.remove();
-            // console.log("Data loaded", roomName);
-            callback(objectCounts);
-        });
+        let eventFunc = ScreepsAdapter.Socket.bindEventToScope(scope, `roomMap2:${shardName}/${roomName}`,
+            /**
+             * @param {RoomObjectCounts} objectCounts
+             */
+            function(objectCounts) {
+                roomObjectCounts[roomName] = objectCounts;
+                eventFunc.remove();
+                // console.log("Data loaded", roomName);
+                callback(objectCounts);
+            }
+        );
     }
 }
 
@@ -48,7 +67,7 @@ function interceptClaim0StatsRequest() {
 function recalculateClaimOverlay() {
     // console.log("recalculateClaimOverlay");
     let user = angular.element(document.body).scope().Me();
-    let mapContainerElem = angular.element(document.querySelector('.map-container'));
+    let mapContainerElem = angular.element('.map-container');
     let worldMap = mapContainerElem.scope().WorldMap;
 
     let mapSectors = document.querySelectorAll('.map-sector');
@@ -67,7 +86,7 @@ function recalculateClaimOverlay() {
             getRoomObjectCounts(worldMap.shard, roomName, (counts) => {
                 if (!counts) return;
                 if (!counts.s) {
-                    console.log("Bad object list for". roomName, counts)
+                    console.log("Bad object list for", roomName, counts);
                     return;
                 }
 
@@ -94,7 +113,7 @@ function recalculateClaimOverlay() {
                     state = "recommended";
                 }
 
-                /** @type {HTMLDivElement} */
+                /** @type {HTMLDivElement | null} */
                 let claimAssistDiv = sectorElem[0].querySelector('.claim-assist');
                 if (!claimAssistDiv) {
                     claimAssistDiv = document.createElement("div");
@@ -148,7 +167,7 @@ function bindMapStatsMonitor() {
 }
 
 // Entry point
-document.addEventListener("readystatechange", () => {
+ScreepsAdapter.ready(() => {
     DomHelper.addStyle(`
         .claim-assist { pointer-events: none; }
         .claim-assist.not-recommended { background: rgba(192, 192, 50, 0.3); }

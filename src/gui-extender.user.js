@@ -16,6 +16,7 @@
 // @require      REPO_URL/screeps-browser-core.js
 // @downloadUrl  REPO_URL/gui-extender.js
 // ==/UserScript==
+// @ts-nocheck
 
 /*
  * Extend/modify various aspects of the Screeps GUI, including:

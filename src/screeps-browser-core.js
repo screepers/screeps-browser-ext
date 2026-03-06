@@ -1,6 +1,7 @@
 (() => {
+    "use strict";
 
-    VERSION = "0.3";
+    const VERSION = "0.3.1";
 
     /**
      * @param {string} a
@@ -30,37 +31,34 @@
      * Polls every 50 milliseconds for a given condition
      * @param {() => boolean} condition
      * @param {number} [pollInterval=50]
-     * @param {number} timeoutAfter
+     * @param {number} [timeoutAfter]
      */
     async function waitFor(condition, pollInterval = 50, timeoutAfter) {
         // Track the start time for timeout purposes
         const startTime = Date.now();
 
         while (true) {
-            // Check for timeout, bail if too much time passed
-            if(typeof(timeoutAfter) === 'number' && Date.now() > startTime + timeoutAfter) {
+            if (typeof(timeoutAfter) === 'number' && Date.now() > startTime + timeoutAfter) {
                 throw new Error('Condition not met before timeout');
             }
 
-            // Check for conditon immediately
             const result = await condition();
-
-            // If the condition is met...
-            if(result) {
-                // Return the result....
+            if (result) {
                 return result;
             }
 
-            // Otherwise wait and check after pollInterval
             await new Promise(r => setTimeout(r, pollInterval));
         }
     }
 
     async function waitForAngular() {
-        await waitFor(() => angular.element(document.body).injector())
+        await waitFor(() => !!angular.element(document.body).injector())
     }
 
     const DomHelper = {};
+    /**
+     * @param {string} css
+     */
     DomHelper.addStyle = function (css) {
         let head = document.head;
         if (!head) return;
@@ -72,6 +70,10 @@
         head.appendChild(style);
     }
 
+    /**
+     * @param {any} parent
+     * @param {string} content
+     */
     DomHelper.generateCompiledElement = function(parent, content) {
         let $scope = parent.scope();
         let $compile = parent.injector().get("$compile");
@@ -98,6 +100,14 @@
         waitForAngular().then(() => callback());
     }
 
+    /** @type {string | null} */
+    ScreepsAdapter.currentView = null;
+
+    /**
+     * @param {string} newViewName
+     * @param {string} oldViewName
+     * @returns
+     */
     function notifyViewWatchers(newViewName, oldViewName) {
         /**
         * Compatibility with the old Tutorial-based interception.
@@ -119,7 +129,7 @@
         * - "roomEntered"
         * - "view": ({object})
         * - "worldMapEntered"
-        *
+        * @type {Record<string, string>}
         */
         const compatViews = {
             "top.game-room": "roomEntered",
@@ -132,7 +142,7 @@
         let rootScope = angular.element(document.body).scope();
         if (!rootScope.viewChangeCallbacks) return;
 
-        this.currentView = newViewName;
+        ScreepsAdapter.currentView = newViewName;
 
         for (let i in rootScope.viewChangeCallbacks) {
             try {
@@ -146,8 +156,6 @@
             }
         }
     }
-
-    ScreepsAdapter.currentView = null;
 
     /**
      * Listen for changes to the main screeps view.
@@ -167,9 +175,15 @@
                 const injector = angular.element(document.body).injector();
 
                 const $routeSegment = injector.get('$routeSegment');
-                rootScope.$watch(() => $routeSegment.name, (newName, oldName) => {
-                    notifyViewWatchers(newName, oldName);
-                });
+                rootScope.$watch(() => $routeSegment.name,
+                    /**
+                     * @param {string} newName
+                     * @param {string} oldName
+                     */
+                    (newName, oldName) => {
+                        notifyViewWatchers(newName, oldName);
+                    }
+                );
 
 
                 rootScope.viewChangeCallbacks = [];
@@ -202,16 +216,23 @@
         waitForAngular().then(() => {
             const rootScope = angular.element(document.body).scope();
             if (!rootScope.hashChangeCallbacks) {
-                rootScope.$watch(() => window.location.hash, function(newVal, oldVal) {
-                    try {
+                rootScope.$watch(() => window.location.hash,
+                    /**
+                     *
+                     * @param {string} newVal
+                     * @param {string} oldVal
+                     */
+                    function(newVal, oldVal) {
+                        try {
 
-                        for (let i in rootScope.hashChangeCallbacks) {
-                            rootScope.hashChangeCallbacks[i](window.location.hash);
+                            for (let i in rootScope.hashChangeCallbacks) {
+                                rootScope.hashChangeCallbacks[i](window.location.hash);
+                            }
+                        } catch (e) {
+                            console.error(e);
                         }
-                    } catch (e) {
-                        console.error(e);
                     }
-                });
+                );
 
                 rootScope.hashChangeCallbacks = [];
             }
@@ -221,8 +242,7 @@
     };
 
     /**
-     * Trigger a callback when entering a room or switching from
-     * one view to another.
+     * Trigger a callback when entering a room or switching from one view to another.
      *
      * @param {(roomName: string) => void} callback - the name of the new room
      */
@@ -242,13 +262,21 @@
         });
     };
 
+    /** @type {angular.IScope | null} */
     let currentRoomScope = null;
+    /** @type {(() => void) | null} */
     let unwatchSelectedObject = null;
+
+    /**
+     *
+     * @param {(oldVal: string, newVal: string) => void} callback
+     * @returns
+     */
     async function watchSelectedObject(callback) {
         // We need a room
-        await waitFor(() => angular.element(document.querySelector(".room.ng-scope")).scope())
+        await waitFor(() => !!angular.element(".room.ng-scope").scope())
 
-        const scope = angular.element(document.querySelector(".room.ng-scope")).scope();
+        const scope = angular.element(".room.ng-scope").scope();
         if (scope && scope !== currentRoomScope) {
             // If we had an old watcher, remove it.
             if (unwatchSelectedObject) {
@@ -259,6 +287,10 @@
             // Attach the watcher
             unwatchSelectedObject = scope.$watch(
                 () => scope.Room?.selectedObject,
+                /**
+                 * @param {string} newVal
+                 * @param {string} oldVal
+                 */
                 (newVal, oldVal) => {
                     if (newVal !== oldVal) {
                         callback(newVal, oldVal);
@@ -272,6 +304,9 @@
         return unwatchSelectedObject;
     }
 
+    /**
+     * @param {any} object
+     */
     function notifySelectionWatchers(object) {
         const rootScope = angular.element(document.body).scope();
         for (const callback of rootScope.objectSelectionCallbacks) {
@@ -283,6 +318,7 @@
         }
     }
 
+    /** @type {(() => void) | null} */
     let watch;
 
     /**
@@ -315,13 +351,10 @@
     /**
      * Display a popup dialog
      *
-     * @param data an object containing the following fields
-     *   title?: string -- a plaintext title; if title and icon are omitted,
-     *     an exclamation point icon is shown
-     *   icon?: url -- an icon/image URL; if title and icon are omitted,
-     *     an exclamation point icon is shown
-     *   message?: text -- a plaintext message to show in the dialog body;
-     *     if message and innerHTML
+     * @param {object} data an object containing the following fields
+     * @param {string} [data.title] - a plaintext title; if title and icon are omitted, an exclamation point icon is shown
+     * @param {string} [data.icon] - an icon/image URL; if title and icon are omitted, an exclamation point icon is shown
+     * @param {string} [data.message] - a plaintext message to show in the dialog body; if message and innerHTML
      * TODO: Document other data properties:
      *   buttonOkLabel
      *   buttonCancelLabel
@@ -358,5 +391,6 @@
         });
     });
 
+    // @ts-expect-error
     window.ScreepsAdapter = ScreepsAdapter;
 })();

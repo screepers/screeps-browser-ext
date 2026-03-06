@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Screeps visible room tracker
 // @namespace    https://screeps.com/
-// @version      0.1.2
+// @version      0.1.3
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
@@ -14,7 +14,7 @@
 // ==/UserScript==
 
 // Entry point
-document.addEventListener("load", () => {
+ScreepsAdapter.ready(() => {
     let monitorRunning = false;
     ScreepsAdapter.onRoomChange(function (roomName) {
         console.log("Visible room changed to:", roomName);
@@ -51,17 +51,22 @@ document.addEventListener("load", () => {
         }
 
         if (roomName && roomName !== "sim") {
-            ScreepsAdapter.Connection.getMemoryByPath(null, "rooms." + roomName).then((baseRoomData) => {
-                if (!baseRoomData) {
-                    ScreepsAdapter.Connection.setMemoryByPath(
-                        null,
-                        "rooms." + roomName,
-                        {}
-                    ).then(ensureRoomMonitor);
-                } else {
-                    ensureRoomMonitor();
+            ScreepsAdapter.Connection.getMemoryByPath(null, "rooms." + roomName).then(
+                /**
+                 * @param {any} baseRoomData
+                 */
+                (baseRoomData) => {
+                    if (!baseRoomData) {
+                        ScreepsAdapter.Connection.setMemoryByPath(
+                            null,
+                            "rooms." + roomName,
+                            {}
+                        ).then(ensureRoomMonitor);
+                    } else {
+                        ensureRoomMonitor();
+                    }
                 }
-            });
+            );
         } else {
             monitorRunning = false;
         }

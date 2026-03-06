@@ -6,7 +6,7 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     1.5.0
+// @version     1.5.1
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
@@ -40,21 +40,6 @@
 const SICH_VERSION = "1.5.0";
 
 /**
- * @typedef CommandDefinition
- * @property {string} name
- * @property {string | string[]} alias
- * @property {string | [cmd: string, desc: string][]} desc
- * @property {(args: string[])} run
- */
-
-/**
- * @typedef RoomHistoryEntry
- * @property {string} server
- * @property {string} shard
- * @property {string} room
- */
-
-/**
  * Clamp a number between a min and max value (inclusive)
  * @param {number} val
  * @param {number} min
@@ -69,7 +54,7 @@ function clamp(val, min, max) {
  * Polls every 50 milliseconds for a given condition
  * @param {() => boolean} condition
  * @param {number} [pollInterval=50]
- * @param {number} timeoutAfter
+ * @param {number} [timeoutAfter]
  */
 async function waitFor(condition, pollInterval = 50, timeoutAfter) {
     // Track the start time for timeout purposes
@@ -135,7 +120,7 @@ function goToRoom(room) {
  * @returns
  */
 function parseInt(str, radix = 10) {
-    const val = Number.parseInt(str, radix);
+    const val = typeof str === "string" ? Number.parseInt(str, radix) : str;
     if (isNaN(val)) return null;
     return val;
 }
@@ -152,7 +137,9 @@ function parseInt(str, radix = 10) {
     /** The thing we were currently typing */
     let buffer = "";
 
-    /** List of single-letter "variables" that can be substitued on the fly into a command */
+    /**
+     * List of single-letter "variables" that can be substitued on the fly into a command
+     */
     const CLI_VARS = {
         "r": () => `"${getCurrentRoom().roomName}"`,
         "s": () => `"${getCurrentRoom().shardName}"`,
@@ -173,7 +160,7 @@ function parseInt(str, radix = 10) {
             desc: "Show this help",
             run: () => {
                 /**
-                 * @param {[cmd, desc]} str
+                 * @param {[cmd: string, desc: string]} str
                  * @returns
                  */
                 const fmtCmd = (str) => {
@@ -182,11 +169,12 @@ function parseInt(str, radix = 10) {
                 const msg = `Screeps improved console history: version ${SICH_VERSION}\n` +
                 `Available commands:\n` +
                 CLI_CMDS.map(c => {
-                    if (c.alias) {
+                    if ('alias' in c) {
                         return fmtCmd([c.name, `An alias for ${COMMAND_SIGIL}${c.alias}`]);
                     }
                     if (!c.desc) return;
 
+                    /** @type {[string, string][]} */
                     const strs = (typeof c.desc === "string" ? [[c.name, c.desc]] : c.desc);
                     const strs2 = strs.map(str => fmtCmd(str));
                     return strs2.join("\n");
@@ -225,12 +213,12 @@ function parseInt(str, radix = 10) {
                         appendConsoleMessage(`Invalid size argument!`, true);
                         return;
                     }
-                    localStorage.setItem(HISTORY_SIZE_KEY, size);
+                    localStorage.setItem(HISTORY_SIZE_KEY, size.toString());
                     appendConsoleMessage(`Set history size to ${size}`);
                     saveHistory(loadHistory()); // Roundabout way of enforcing the new size
                     return;
                 }
-                const cmdIdx = parseInt(args[0]);
+                const cmdIdx = parseInt(args[0]) ?? -1;
                 if (cmdIdx < 0 || cmdIdx >= history.length) {
                     appendConsoleMessage(`Command index ${cmdIdx} is out of bounds!`, true);
                     return;
@@ -341,7 +329,6 @@ function parseInt(str, radix = 10) {
     function loadHistory() {
         const history = /** @type {string[]} */ (JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) ?? "[]"));
         console.warn(`History loaded, ${history.length} entries found`);
-        window.screepsHistory = history; // TODO: remove, debugging only
         return history;
     }
     window.loadHistory = loadHistory;
@@ -362,12 +349,15 @@ function parseInt(str, radix = 10) {
     }
     window.clearHistory = clearHistory;
 
+    const DEFAULT_HISTORY_SIZE = 100.
     function getHistorySize() {
-        return parseInt(localStorage.getItem(HISTORY_SIZE_KEY)) ?? 100;
+        const size = localStorage.getItem(HISTORY_SIZE_KEY);
+        if (size === null) return DEFAULT_HISTORY_SIZE;
+        return parseInt(size) ?? DEFAULT_HISTORY_SIZE;
     }
 
     function getCurrentRoom() {
-        return angular.element(document.querySelector('.room.ng-scope')).scope().Room;
+        return angular.element('.room.ng-scope').scope().Room;
     }
 
     function selectedObject() {
@@ -376,6 +366,7 @@ function parseInt(str, radix = 10) {
         return obj;
     }
 
+    /** @type {RoomHistoryEntry[]} */
     const roomHistory = [];
     function loadRoomHistory() {
         return roomHistory;
@@ -396,8 +387,11 @@ function parseInt(str, radix = 10) {
     }
     window.clearRoomHistory = clearRoomHistory;
 
+    const DEFAULT_ROOM_HISTORY_SIZE = 100;
     function getRoomHistorySize() {
-        return parseInt(localStorage.getItem(NAVIGATION_SIZE_KEY)) ?? 100;
+        const size = localStorage.getItem(NAVIGATION_SIZE_KEY);
+        if (size === null) return DEFAULT_ROOM_HISTORY_SIZE;
+        return parseInt(size) ?? DEFAULT_ROOM_HISTORY_SIZE;
     }
 
     function trackRoomNavigation() {
@@ -439,22 +433,27 @@ function parseInt(str, radix = 10) {
         });
         if (console.messages[userId].length > MAX_CONSOLE_MESSAGE_COUNT)
             console.messages[userId] = console.messages[userId].slice(-MAX_CONSOLE_MESSAGE_COUNT);
-    };
-    window.appendConsoleMessage = appendConsoleMessage;
+    }
 
     const Range = ace.require("ace/range").Range;
 
+    /**
+     * @param {number} start
+     * @param {number} end
+     */
     function addMarker(start, end) {
         console.warn(`addMarker: ${start}-${end}`);
+        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element('.ace_editor')[1]))
         aceEditor.getSession().addMarker(new Range(1, start, 1, end), "subst-error-highlight", "text", true);
     }
 
     function clearMarkers() {
+        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element('.ace_editor')[1]))
         const session = aceEditor.getSession();
         const markers = session.getMarkers(true);
         for (const markerId in markers) {
             if (markers[markerId].clazz === "subst-error-highlight") {
-                session.removeMarker(markerId);
+                session.removeMarker(Number(markerId));
             }
         }
         console.warn(`clearMarkers`);
@@ -467,8 +466,9 @@ function parseInt(str, radix = 10) {
     function substituteVariables(line) {
         let hasError = false;
         for (const v in CLI_VARS) {
-            const regex = new RegExp([`(?<![\w\"'])${VARIABLE_SIGIL}${v}(?![\w\"])`], "g")
+            const regex = new RegExp(`(?<![\w\"'])${VARIABLE_SIGIL}${v}(?![\w\"])`, "g")
             try {
+                // @ts-expect-error
                 let replacement = CLI_VARS[v]();
                 line = line.replaceAll(regex, replacement);
             } catch (e) {
@@ -486,18 +486,19 @@ function parseInt(str, radix = 10) {
     }
 
     /**
-     *
      * @param {string} name
      * @param {string[]} args
-     * @returns
      */
     function getCommand(name, args) {
         const cmd = CLI_CMDS.find(c => c.name === name);
-        if (Array.isArray(cmd.alias)) {
-            args.unshift(cmd.alias[1]);
-            return getCommand(cmd.alias[0]);
-        } else if (cmd.alias) {
-            return getCommand(cmd.alias);
+        if (!cmd) return null;
+        if ('alias' in cmd) {
+            if (Array.isArray(cmd.alias)) {
+                args.unshift(cmd.alias[1]);
+                return getCommand(cmd.alias[0], []);
+            } else {
+                return getCommand(cmd.alias, []);
+            }
         }
         return cmd;
     }
@@ -561,6 +562,7 @@ function parseInt(str, radix = 10) {
         historyIdx = -1; // Put us back down at the top of the stack
     }
 
+    /** @type {NodeJS.Timeout} */
     let timer;
     const setupConsoleHistory = () => {
         const consoleEl = document.querySelector('.console.ng-scope'); // "Top.Game.Console"
@@ -577,12 +579,11 @@ function parseInt(str, radix = 10) {
         }
         gameConsole.extendedHistory = true;
 
-        window.gameConsole = gameConsole; // TODO: debugging
 
-        const aceEditor = ace.edit(angular.element('.ace_editor')[1])
-        window.aceEditor = aceEditor; // TODO: debugging
+        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element('.ace_editor')[1]))
 
         // Snippets have a tendency to activate in the middle of other things
+        // @ts-expect-error
         aceEditor.$enableSnippets = false;
 
         console.warn(`Overriding Console methods`);
@@ -593,6 +594,7 @@ function parseInt(str, radix = 10) {
         }
 
         const _keydown = gameConsole.keydown;
+        /** @param {KeyboardEvent} e */
         gameConsole.keydown = function(e) {
             console.warn(`keydown:`, e);
             if (e.keyCode === 38 || e.keyCode === 40) {

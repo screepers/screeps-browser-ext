@@ -4,7 +4,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
-import { ESLint } from "eslint";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,7 +13,6 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
-/** @type {ESLint.ConfigData} */
 export default defineConfig([{
     languageOptions: {
         globals: {
@@ -38,7 +36,7 @@ export default defineConfig([{
         radix: "error",
         "brace-style": "warn",
         camelcase: "error",
-        indent: [4, "space"],
+        indent: ["error", 2, "space"],
         "no-array-constructor": "error",
 
         quotes: ["error", "double", {

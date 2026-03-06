@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Screeps Birthday viewer
 // @namespace    https://screeps.com
-// @version      0.1
+// @version      0.1.1
 // @description  This adds a creep's birthday to the inspector
 // @author       Traxus, various
 // @run-at       document-ready
@@ -19,11 +19,17 @@
 
 log("TamperMonkey - Loaded Birthday Viewer");
 
+/**
+ * @param  {...any} args
+ */
 function log(...args) {
     console.warn(...args);
 }
 
-function formatDate(d){
+/**
+ * @param {Date} d
+ */
+function formatDate(d) {
     return ("0" + d.getUTCHours()).slice(-2)+":"+("0" + d.getUTCMinutes()).slice(-2)+":"+("0" + d.getUTCSeconds()).slice(-2) + " " +
         ("0" + (d.getUTCMonth()+1)).slice(-2)+"/"+("0" + d.getUTCDate()).slice(-2)+"/"+d.getUTCFullYear() + " UTC";
 };
@@ -43,41 +49,13 @@ function showBdayInternal() {
     }
 }
 
-// Polls every 50 milliseconds for a given condition
-async function waitFor(condition, pollInterval = 50, timeoutAfter) {
-    // Track the start time for timeout purposes
-    const startTime = Date.now();
-
-    while (true) {
-        // Check for timeout, bail if too much time passed
-        if(typeof(timeoutAfter) === 'number' && Date.now() > startTime + timeoutAfter) {
-            throw 'Condition not met before timeout';
-        }
-
-        // Check for conditon immediately
-        const result = await condition();
-
-        // If the condition is met...
-        if(result) {
-            // Return the result....
-            return result;
-        }
-
-        // Otherwise wait and check after pollInterval
-        await new Promise(r => setTimeout(r, pollInterval));
-    }
-}
-
 // Entry point
-$(document).ready(() => {
-    waitFor(() => angular.element(document.body).scope() !== undefined).then(() => {
-
-        ScreepsAdapter.onViewChange((view) => {
-            ScreepsAdapter.$timeout(() => {
-                if (view == 'view' && $('.object-properties .aside-block-content')[0]) {
-                    showBdayInternal();
-                }
-            }, 100);
-        });
+ScreepsAdapter.ready(() => {
+    ScreepsAdapter.onViewChange((view) => {
+        ScreepsAdapter.$timeout(() => {
+            if (view == 'view' && $('.object-properties .aside-block-content')[0]) {
+                showBdayInternal();
+            }
+        }, 100);
     });
 });

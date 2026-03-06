@@ -1,3 +1,4 @@
+// @ts-nocheck
 global.getClientVisibleRooms = function (age) {
     let since = Game.time - ((age !== undefined)
         ? age

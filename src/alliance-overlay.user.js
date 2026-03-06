@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.2.10
+// @version      0.2.11
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
@@ -17,8 +17,16 @@
 
 const loanBaseUrl = "https://www.leagueofautomatednations.com";
 
+/** @type {{ [allianceId: string]: { name: string, logo: string, members: string[] } }} */
 let allianceData;
+
+/** @type {{ [userName: string]: string }} */
 let userAlliance;
+
+/**
+ * @param {string} allianceKey
+ * @returns
+ */
 function getAllianceLogo(allianceKey) {
     let data = allianceData[allianceKey];
     if (data) {
@@ -26,7 +34,12 @@ function getAllianceLogo(allianceKey) {
     }
 }
 
+/** @type {{ [allianceId: string]: string }} */
 let colorMap = {};
+
+/**
+ * @param {string} allianceKey
+ */
 function getAllianceColor(allianceKey) {
     if (!colorMap[allianceKey]) {
         let seed = allianceData[allianceKey].name;
@@ -44,7 +57,10 @@ function getAllianceColor(allianceKey) {
     return colorMap[allianceKey];
 }
 
-// query for alliance data from the LOAN site
+/**
+ * query for alliance data from the LOAN site
+ * @param {() => void} callback
+ */
 function ensureAllianceData(callback) {
     if (allianceData) {
         if (callback) callback();
@@ -72,7 +88,9 @@ function ensureAllianceData(callback) {
     });
 }
 
-// Stuff references to the alliance data in the world map object. Not clear whether this is actually doing useful things.
+/**
+ * Stuff references to the alliance data in the world map object. Not clear whether this is actually doing useful things.
+ */
 function exposeAllianceDataForAngular() {
     let app = angular.element(document.body);
     let $timeout = angular.element('body').injector().get('$timeout');
@@ -88,31 +106,14 @@ function exposeAllianceDataForAngular() {
     });
 
     for (let allianceKey in allianceData) {
-        addStyle(".alliance-" + allianceKey + " { background-color: " + getAllianceColor(allianceKey) + " }");
-        addStyle(".alliance-logo-3.alliance-" + allianceKey + " { background-image: url('" + getAllianceLogo(allianceKey) + "') }");
+        DomHelper.addStyle(".alliance-" + allianceKey + " { background-color: " + getAllianceColor(allianceKey) + " }");
+        DomHelper.addStyle(".alliance-logo-3.alliance-" + allianceKey + " { background-image: url('" + getAllianceLogo(allianceKey) + "') }");
     }
 }
 
-// inject a new CSS style
-function addStyle(css) {
-    let head = document.head;
-    if (!head) return;
-
-    let style = document.createElement('style');
-    style.type = 'text/css';
-    style.innerHTML = css;
-
-    head.appendChild(style);
-}
-
-function generateCompiledElement(parent, content) {
-    let $scope = parent.scope();
-    let $compile = parent.injector().get("$compile");
-
-    return $compile(content)($scope);
-}
-
-// Bind the WorldMap alliance display option to the localStorage value
+/**
+ * Bind the WorldMap alliance display option to the localStorage value
+ */
 function bindAllianceSetting() {
     let alliancesEnabled = localStorage.getItem("alliancesEnabled") !== "false";
     let worldMapElem = angular.element('.world-map');
@@ -131,6 +132,9 @@ function bindAllianceSetting() {
         }
     };
 
+    /**
+     * @param {string} userId
+     */
     worldMap.getAllianceName = function (userId) {
         if (!worldMap.userAlliance) return "Loading...";
 
@@ -158,14 +162,14 @@ function addAllianceToggle() {
                 <span>&#9733;</span>\
         </md:button>";
 
-    addStyle("\
+    DomHelper.addStyle("\
         section.world-map .map-container .btn-units.alliance-toggle { right: 50px; font-size: 16px; padding: 4px; } \
         section.world-map .map-container .btn-units.alliance-toggle.solitary { right: 10px; } \
         section.world-map .map-container .layer-select { right: 90px; } \
     ");
 
     let mapContainerElem = angular.element('.map-container');
-    let compiledContent = generateCompiledElement(mapContainerElem, content);
+    let compiledContent = DomHelper.generateCompiledElement(mapContainerElem, content);
     $(compiledContent).appendTo(mapContainerElem);
 }
 
@@ -180,7 +184,7 @@ function addAllianceToInfoOverlay() {
         </div>";
 
     let mapFloatElem = angular.element('.map-float-info');
-    let compiledContent = generateCompiledElement(mapFloatElem, content);
+    let compiledContent = DomHelper.generateCompiledElement(mapFloatElem, content);
     $(compiledContent).insertAfter($(mapFloatElem).children('.owner')[0]);
 }
 
@@ -190,6 +194,11 @@ function recalculateAllianceOverlay() {
     let worldMap = scope.WorldMap;
     if (!worldMap.displayOptions.alliances || !worldMap.allianceData) return;
 
+    /**
+     * @param {string} roomName
+     * @param {number} left
+     * @param {number} top
+     */
     function drawRoomAllianceOverlay(roomName, left, top) {
         let roomDiv = $('<div class="alliance-logo" id="' + roomName + '"></div>');
         let roomStats = worldMap.roomStats[roomName];
@@ -217,6 +226,7 @@ function recalculateAllianceOverlay() {
             case 1: { roomPixels = 20;  roomsPerSectorEdge = 10; break; }
             case 2: { roomPixels = 50;  roomsPerSectorEdge =  4; break; }
             case 3: { roomPixels = 150; roomsPerSectorEdge =  1; break; }
+            default: return;
         }
 
         let posStr = $location.search().pos;
@@ -250,7 +260,7 @@ function recalculateAllianceOverlay() {
 
 let pendingRedraws = 0;
 function addSectorAllianceOverlay() {
-    addStyle("\
+    DomHelper.addStyle("\
         .alliance-logo { position: absolute; z-index: 2; opacity: 0.4 }\
         .alliance-logo-1 { width: 20px; height: 20px; }\
         .alliance-logo-2 { width: 50px; height: 50px; }\
