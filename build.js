@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, watch } from 'fs';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import { Userscript } from './userscript.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,8 +48,7 @@ function getGitHubPagesUrl() {
     const [username, repoName] = repoPath.split('/');
     return `https://${username}.github.io/${repoName}`;
   } catch (error) {
-    console.error(`Error: Could not detect git remote origin: ${error.message}`);
-    console.error('Make sure you are in a git repository with a GitHub remote configured.');
+    console.error('Error: Could not detect git remote origin. Make sure you are in a git repository with a GitHub remote configured.', error);
     process.exit(1);
   }
 }
@@ -57,26 +57,50 @@ function getGitHubPagesUrl() {
 const env = process.env.BUILD_ENV || 'development';
 const repoUrl = env === 'production' ? getGitHubPagesUrl() : 'http://localhost:8000';
 
-// Process a single userscript file
+/**
+ * Process a single userscript file
+ * @param {string} file
+ */
 function processUserscript(file) {
   const inputPath = join(SRC_DIR, file);
   const outputPath = join(PUBLIC_DIR, file);
 
   try {
-    let content = readFileSync(inputPath, 'utf-8');
+    let content = readFileSync(inputPath, { encoding: 'utf-8' });
 
-    content = content.replace(/REPO_URL\//g, `${repoUrl}/`);
+    const script = new Userscript(content);
 
-    writeFileSync(outputPath, content, 'utf-8');
+    const cacheBust = Date.now();
+
+    /** @param {string} base */
+    const processUrl = (base) => {
+      base = base.replace(/REPO_URL\//g, `${repoUrl}/`);
+      base += `${base.indexOf('?') === -1 ? '?' : '&'}v=${cacheBust}`;
+      return base;
+    }
+
+    let dl = script.headers.get("downloadUrl");
+    if (dl) {
+      script.headers.set("downloadUrl", processUrl(dl));
+    }
+    let requires = script.headers.getAll('require') ?? [];
+    for (let [require, index] of requires) {
+      script.headers.set("require", processUrl(require), index);
+    }
+
+    writeFileSync(outputPath, script.output(), 'utf-8');
     console.log(`  ✓ ${file}`);
     return true;
   } catch (error) {
-    console.error(`  ✗ Error processing ${file}: ${error.message}`);
+    console.error('  ✗ Error processing ${file}:', error);
     return false;
   }
 }
 
-// Generate index.html
+/**
+ * Generate index.html
+ * @param {string[]} userscriptFiles
+ */
 function generateIndex(userscriptFiles) {
   const scripts = userscriptFiles.map(file => {
     const name = file.replace('.user.js', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -182,7 +206,7 @@ function copyCoreFile() {
     console.log(`  ✓ ${coreFile}`);
     return true;
   } catch (error) {
-    console.error(`  ✗ Error copying ${coreFile}: ${error.message}`);
+    console.error(`  ✗ Error copying ${coreFile}:`, error);
     return false;
   }
 }
