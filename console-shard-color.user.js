@@ -9,7 +9,7 @@
 // @match       http://*.localhost:*/(*)/#!/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/console-shard-color.js?v=1772834456225
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/console-shard-color.js?v=1773232591771
 // ==/UserScript==
 
 
