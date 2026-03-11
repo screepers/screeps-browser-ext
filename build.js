@@ -7,7 +7,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, watch } from 'fs';
-import { join, dirname, basename } from 'path';
+import { join, dirname, relative, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { Userscript } from './userscript.js';
@@ -53,6 +53,13 @@ function getGitHubPagesUrl() {
   }
 }
 
+function getUserscripts() {
+  const userscriptFiles = readdirSync(SRC_DIR)
+    .filter(file => file.endsWith('.user.js'))
+    .map(file => relative(__dirname, join(SRC_DIR, file)));
+  return userscriptFiles
+}
+
 // Configuration
 const env = process.env.BUILD_ENV || 'development';
 const repoUrl = env === 'production' ? getGitHubPagesUrl() : 'http://localhost:8000';
@@ -62,8 +69,8 @@ const repoUrl = env === 'production' ? getGitHubPagesUrl() : 'http://localhost:8
  * @param {string} file
  */
 function processUserscript(file) {
-  const inputPath = join(SRC_DIR, file);
-  const outputPath = join(PUBLIC_DIR, file);
+  const inputPath = file;
+  const outputPath = join(PUBLIC_DIR, basename(file));
 
   try {
     let content = readFileSync(inputPath, { encoding: 'utf-8' });
@@ -89,7 +96,7 @@ function processUserscript(file) {
     }
 
     writeFileSync(outputPath, script.output(), 'utf-8');
-    console.log(`  ✓ ${file}`);
+    console.log(`  ✓ ${basename(file)}`);
     return true;
   } catch (error) {
     console.error('  ✗ Error processing ${file}:', error);
@@ -102,10 +109,12 @@ function processUserscript(file) {
  * @param {string[]} userscriptFiles
  */
 function generateIndex(userscriptFiles) {
-  const scripts = userscriptFiles.map(file => {
-    const name = file.replace('.user.js', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const url = `${repoUrl}/${file}`;
-    return { name, file, url };
+  const scripts = userscriptFiles.map(filepath => {
+    const filename = basename(filepath);
+    const name = filename.replace('.user.js', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const url = `${repoUrl}/${filename}`;
+    const description = new Userscript(readFileSync(filepath, 'utf8')).headers.get('description') ?? "";
+    return { filepath, filename, name, url, description };
   });
 
   const html = `<!DOCTYPE html>
@@ -177,9 +186,11 @@ function generateIndex(userscriptFiles) {
     <p>Collection of userscripts to enhance your Screeps experience. Click on any script to install it with your userscript manager (TamperMonkey, ViolentMonkey, etc.).</p>
 
     <ul class="script-list">
-${scripts.map(script => `        <li class="script-item">
+      ${scripts.map(script => `
+        <li class="script-item">
             <div class="script-name">${script.name}</div>
-            <a href="${script.url}" class="script-link">Install ${script.file}</a>
+            <div class="script-description">${script.description}</div>
+            <a href="${script.url}" class="script-link">Install ${script.filename}</a>
         </li>`).join('\n')}
     </ul>
 
@@ -222,8 +233,7 @@ function buildAll() {
   mkdirSync(PUBLIC_DIR, { recursive: true });
 
   // Find all userscript files in src/
-  const userscriptFiles = readdirSync(SRC_DIR)
-    .filter(file => file.endsWith('.user.js'));
+  const userscriptFiles = getUserscripts();
 
   console.log(`Processing ${userscriptFiles.length} userscript(s)...`);
 
@@ -254,12 +264,12 @@ function watchMode() {
 
   watch(SRC_DIR, { recursive: false }, (eventType, filename) => {
     if (filename) {
-      console.log(`\n[${new Date().toLocaleTimeString()}] File changed: ${filename}`);
+      filename = join(SRC_DIR, filename);
+      console.log(`\n[${new Date().toLocaleTimeString()}] File changed: ${relative(__dirname, filename)}`);
       if (filename.endsWith('.user.js')) {
         processUserscript(filename);
         // Regenerate index.html
-        const userscriptFiles = readdirSync(SRC_DIR)
-          .filter(file => file.endsWith('.user.js'));
+        const userscriptFiles = getUserscripts();
         generateIndex(userscriptFiles);
       } else if (filename === 'screeps-browser-core.js') {
         copyCoreFile();
