@@ -15,3 +15,9 @@ declare function randomColor(opts: {
 
 // XXX: not sure what's the story there
 declare var GM_xmlhttpRequest = GM.xmlHttpRequest;
+
+// greasemonkey API - Used in room-claim-assistant
+declare function GM_registerMenuCommand(name: string, callback: () => void): void;
+declare function GM_unregisterMenuCommand(name: string): void;
+declare function GM_getValue<T>(name: string, defaultValue?: T): T;
+declare function GM_setValue(name: string, value: any): void;
