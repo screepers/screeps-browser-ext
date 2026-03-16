@@ -19,7 +19,7 @@
 
 let ignoreSigns = GM_getValue('ignoreSigns');
 
-const getCmd = () => ignoreSigns ? 'Ignore signs: Disable' : 'Ignore signs: Enable';
+const getCmd = () => ignoreSigns ? 'Ignore signs: Enabled (Click to Disable)' : 'Ignore signs: Disabled (Click to Enable)';
 GM_registerMenuCommand(getCmd(), function onCommand() {
   GM_unregisterMenuCommand(getCmd());
   ignoreSigns = !ignoreSigns;
