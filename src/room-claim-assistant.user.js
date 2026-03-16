@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Screeps room claim assistant
 // @namespace    https://screeps.com/
-// @version      0.1.8
+// @version      0.1.9
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
@@ -106,6 +106,7 @@ function recalculateClaimOverlay() {
                 }
 
                 let userOwned = (roomStats.own && roomStats.own.user === user._id);
+                let invaderOwned = (roomStats.own && roomStats.own.user === "2"); // 2 is the hardcoded ID for Invader
 
                 // show minerals if:
                 let showMinerals =
@@ -115,14 +116,14 @@ function recalculateClaimOverlay() {
                 let state = "not-recommended";
                 if (userOwned && roomStats.own.level > 0) {
                     state = "owned";
-                } else if (roomStats.own && !userOwned) {
-                    state = "prohibited";
+                } else if (roomStats.own && !userOwned && !invaderOwned) {
+                    state = "prohibited"; // rooms reserved or claimed by anyone except the user or Invader
                 } else if (!ignoreSigns && roomStats.sign && !userOwned && roomStats.sign.user !== user._id) {
                     state = "signed";
                 } else if (counts.c.length === 0) {
                     state = "unclaimable";
                 } else if (counts.s.length >= 2 &&
-                    (!roomStats.own || (userOwned && roomStats.own.level === 0))) {
+                    (!roomStats.own || (userOwned && roomStats.own.level === 0) || invaderOwned)) {
                     // recommend if it has two sources and a controller, nobody else owns it,
                     // and user hasn't already claimed
                     state = "recommended";
