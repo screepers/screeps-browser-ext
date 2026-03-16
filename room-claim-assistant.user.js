@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps room claim assistant
 // @namespace   https://screeps.com/
-// @version     0.1.7
+// @version     0.1.8
 // @author      James Cook
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
@@ -9,11 +9,26 @@
 // @match       http://*.localhost:*/(*)/#!/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1773232591774
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1773232591774
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1773679615941
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1773679615941
+// @grant       GM_getValue
+// @grant       GM_setValue
+// @grant       GM_registerMenuCommand
+// @grant       GM_unregisterMenuCommand
 // ==/UserScript==
 
 
+
+let ignoreSigns = GM_getValue('ignoreSigns');
+
+const getCmd = () => ignoreSigns ? 'Ignore signs: Enabled (Click to Disable)' : 'Ignore signs: Disabled (Click to Enable)';
+GM_registerMenuCommand(getCmd(), function onCommand() {
+  GM_unregisterMenuCommand(getCmd());
+  ignoreSigns = !ignoreSigns;
+  GM_setValue('ignoreSigns', ignoreSigns);
+  GM_registerMenuCommand(getCmd(), onCommand);
+  angular.element('.world-map.ng-scope').scope().$broadcast("recalcMapSectors")
+});
 
 /**
  * @typedef RoomObjectCounts
@@ -104,7 +119,7 @@ function recalculateClaimOverlay() {
                     state = "owned";
                 } else if (roomStats.own && !userOwned) {
                     state = "prohibited";
-                } else if (roomStats.sign && !userOwned && roomStats.sign.user !== user._id) {
+                } else if (!ignoreSigns && roomStats.sign && !userOwned && roomStats.sign.user !== user._id) {
                     state = "signed";
                 } else if (counts.c.length === 0) {
                     state = "unclaimable";
