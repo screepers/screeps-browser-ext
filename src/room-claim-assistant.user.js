@@ -1,20 +1,20 @@
 // ==UserScript==
-// @name        Screeps room claim assistant
-// @namespace   https://screeps.com/
-// @version     0.1.7
-// @author      James Cook
-// @match       https://screeps.com/a/*
-// @match       https://screeps.com/ptr/*
-// @match       https://screeps.com/season/*
-// @match       http://*.localhost:*/(*)/#!/*
-// @run-at      document-ready
-// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1773232591774
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1773232591774
-// @grant GM_getValue
-// @grant GM_setValue
-// @grant GM_registerMenuCommand
-// @grant GM_unregisterMenuCommand
+// @name         Screeps room claim assistant
+// @namespace    https://screeps.com/
+// @version      0.1.9
+// @author       James Cook
+// @match        https://screeps.com/a/*
+// @match        https://screeps.com/ptr/*
+// @match        https://screeps.com/season/*
+// @match        http://*.localhost:*/(*)/#!/*
+// @run-at       document-ready
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @require      REPO_URL/screeps-browser-core.js
+// @downloadUrl  REPO_URL/room-claim-assistant.user.js
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 // ==/UserScript==
 
 let ignoreSigns = GM_getValue('ignoreSigns');
