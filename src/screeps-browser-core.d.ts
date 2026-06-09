@@ -69,6 +69,7 @@ declare var ScreepsAdapter: {
     showDialog(data: ShowDialogOptions): void;
 
     $location: {
+        get $$absUrl(): string;
         url(url: string): void;
     };
     $routeSegment: {
