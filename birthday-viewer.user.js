@@ -11,8 +11,8 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1773681702263
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/gui-extender.js?v=1773681702263
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1781048012036
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/gui-extender.js?v=1781048012036
 // ==/UserScript==
 
 

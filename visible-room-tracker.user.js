@@ -9,8 +9,8 @@
 // @match       http://*.localhost:*/(*)/#!/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1773681702267
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/visible-room-tracker.user.js?v=1773681702267
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1781048012039
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/visible-room-tracker.user.js?v=1781048012039
 // ==/UserScript==
 
 

@@ -6,13 +6,13 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost:*/(*)/#!/*
 // @grant       none
-// @version     0.0.2
+// @version     0.0.3
 // @author      -
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1773681702264
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/force-alpha-map.js?v=1773681702264
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1781048012036
+// @downloadUrl https://screepers.github.io/screeps-browser-ext/force-alpha-map.js?v=1781048012036
 // ==/UserScript==
 
 
@@ -57,9 +57,21 @@
 
     async function overrideRoom() {
         await ScreepsAdapter.waitFor(() => getCurrentRoom());
-        getCurrentRoom().goToMap = function () {
-            const router = ScreepsAdapter.$routeSegment;
-            const roomCoords = ScreepsAdapter.MapUtils.roomNameToXY(router.$routeParams.room);
+        const buttons = [...document.querySelectorAll('button')];
+        const mapButton = buttons.find(b => b.getAttribute("ng-click=")?.startsWith('Room.goToMap'));
+        if (mapButton) {
+            mapButton.addEventListener('click', e => {
+                getCurrentRoom().goToMap(e);
+            }, true);
+        }
+
+        /**
+         * @param {PointerEvent} e
+         */
+        getCurrentRoom().goToMap = function (e) {
+            e ??= /** @type {PointerEvent} */ (window.event);
+            const { $routeSegment, $location } = ScreepsAdapter;
+            const roomCoords = ScreepsAdapter.MapUtils.roomNameToXY($routeSegment.$routeParams.room);
 
             const query = new URLSearchParams();
             query.set("pos", `${roomCoords[0] + .5},${roomCoords[1] + .5}`);
@@ -67,7 +79,15 @@
             query.set("visual", getSetting("visual") ?? true);
             query.set("claim", getSetting("claim") ?? true);
 
-            ScreepsAdapter.$location.url(router.getSegmentUrl("top.map2shard") + "?" + query.toString());
+
+            const newUrl = $routeSegment.getSegmentUrl("top.map2shard") + "?" + query.toString();
+            if (e.ctrlKey || e.metaKey) {
+                const prefix = $location.$$absUrl.substring(0, $location.$$absUrl.indexOf('#!') + 2);
+                const url = prefix + newUrl;
+                window.open(url, '_blank');
+            } else {
+                ScreepsAdapter.$location.url(newUrl);
+            }
         }
     }
 
