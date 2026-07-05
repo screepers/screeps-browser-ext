@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.2.11
+// @version      0.2.12
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
-// @match        http://*.localhost:*/(*)/#!/*
+// @match        http://*.localhost/(*)/*
 // @run-at       document-ready
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadUrl  REPO_URL/alliance-overlay.user.js
+// @downloadURL  REPO_URL/alliance-overlay.user.js
 // @grant        GM_xmlhttpRequest
 // @require      http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js
 // @require      REPO_URL/screeps-browser-core.js

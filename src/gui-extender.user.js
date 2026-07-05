@@ -2,7 +2,7 @@
 // @name         Screeps GUI Extender
 // @description  Extends the Screeps GUI with additional information and controls
 // @namespace    https://screeps.com/
-// @version      0.0.5
+// @version      0.0.6
 // @author       Dr. Dvorak
 // @author       James Cook
 // @tag          games
@@ -10,11 +10,11 @@
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
 // @match        https://screeps.com/season/*
-// @match        http://*.localhost:*/(*)/#!/*
+// @match        http://*.localhost/(*)/*
 // @run-at       document-idle
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require      REPO_URL/screeps-browser-core.js
-// @downloadUrl  REPO_URL/gui-extender.js
+// @downloadURL  REPO_URL/gui-extender.js
 // ==/UserScript==
 // @ts-nocheck
 

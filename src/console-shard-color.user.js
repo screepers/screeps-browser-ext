@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         Console Shard Coloring
 // @namespace    https://screeps.com/
-// @version      1.1
+// @version      1.1.1
 // @description  This tweaks the background colors of console logs from each shard to improve clarity
 // @author       Traxus
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
-// @match        http://*.localhost:*/(*)/#!/*
+// @match        http://*.localhost/(*)/*
 // @run-at       document-ready
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadUrl  REPO_URL/console-shard-color.js
+// @downloadURL  REPO_URL/console-shard-color.js
 // ==/UserScript==
 
 (function() {

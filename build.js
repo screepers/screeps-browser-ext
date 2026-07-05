@@ -86,9 +86,9 @@ function processUserscript(file) {
       return base;
     }
 
-    let dl = script.headers.get("downloadUrl");
+    let dl = script.headers.get("downloadURL");
     if (dl) {
-      script.headers.set("downloadUrl", processUrl(dl));
+      script.headers.set("downloadURL", processUrl(dl));
     }
     let requires = script.headers.getAll('require') ?? [];
     for (let [require, index] of requires) {

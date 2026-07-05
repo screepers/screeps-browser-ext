@@ -22,4 +22,4 @@ Visit the [published userscripts](https://screepers.github.io/screeps-browser-ex
 - `npm run serve` - Start a local HTTP server on port 8000
 - `npm run lint` - Run ESLint
 
-**Note:** All userscript source files in `src/` use the `REPO_URL` placeholder in both `@require` and `@downloadUrl` directives to support both local development and GitHub Pages publishing.
+**Note:** All userscript source files in `src/` use the `REPO_URL` placeholder in both `@require` and `@downloadURL` directives to support both local development and GitHub Pages publishing.

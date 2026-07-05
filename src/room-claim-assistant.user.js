@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name         Screeps room claim assistant
 // @namespace    https://screeps.com/
-// @version      0.1.9
+// @version      0.1.10
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
 // @match        https://screeps.com/season/*
-// @match        http://*.localhost:*/(*)/#!/*
+// @match        http://*.localhost/(*)/*
 // @run-at       document-ready
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require      REPO_URL/screeps-browser-core.js
-// @downloadUrl  REPO_URL/room-claim-assistant.user.js
+// @downloadURL  REPO_URL/room-claim-assistant.user.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand

@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name         Screeps diplomacy overlay
 // @namespace    https://screeps.com/
-// @version      0.2.3
+// @version      0.2.4
 // @author       James Cook
 // @match        https://screeps.com/a/*
 // @match        https://screeps.com/ptr/*
 // @match        https://screeps.com/season/*
-// @match        http://*.localhost:*/(*)/#!/*
+// @match        http://*.localhost/(*)/*
 // @run-at       document-ready
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require      REPO_URL/screeps-browser-core.js
-// @downloadUrl  REPO_URL/diplomacy-overlay.user.js
+// @downloadURL  REPO_URL/diplomacy-overlay.user.js
 // ==/UserScript==
 // @ts-nocheck
 

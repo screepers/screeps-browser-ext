@@ -14,6 +14,8 @@ const compat = new FlatCompat({
 });
 
 export default defineConfig([{
+    ignores: ["public/"],
+}, {
     languageOptions: {
         globals: {
             ...globals.browser,
@@ -36,7 +38,7 @@ export default defineConfig([{
         radix: "error",
         "brace-style": "warn",
         camelcase: "error",
-        indent: ["error", 2, "space"],
+        indent: ["error", 2],
         "no-array-constructor": "error",
 
         quotes: ["error", "double", {
