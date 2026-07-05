@@ -4,15 +4,15 @@
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
-// @match       http://*.localhost:*/(*)/#!/*
+// @match       http://*.localhost/(*)/*
 // @icon        // @grant       none
-// @version     0.1
+// @version     0.1.1
 // @author      -
 // @description Better sorting for the resource list in the inspector
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1781048012039
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/store-resource-sorter.js?v=1781048012039
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783211638150
+// @downloadURL https://screepers.github.io/screeps-browser-ext/store-resource-sorter.js?v=1783211638150
 // ==/UserScript==
 
 

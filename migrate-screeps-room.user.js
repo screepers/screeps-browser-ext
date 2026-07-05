@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name        Migrate room to simulator
 // @namespace   https://screeps.com/
-// @version     1.4.1
+// @version     1.4.2
 // @author      Mark Bertels, Esryok
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
-// @match       http://*.localhost:*/(*)/#!/*
+// @match       http://*.localhost/(*)/*
 // @run-at      context-menu
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @grant       none
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js?v=1781048012038
+// @downloadURL https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js?v=1783211638149
 // ==/UserScript==
 
 

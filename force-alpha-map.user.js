@@ -4,15 +4,15 @@
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
-// @match       http://*.localhost:*/(*)/#!/*
+// @match       http://*.localhost/(*)/*
 // @grant       none
-// @version     0.0.3
+// @version     0.0.4
 // @author      -
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1781048012036
-// @downloadUrl https://screepers.github.io/screeps-browser-ext/force-alpha-map.js?v=1781048012036
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783211638148
+// @downloadURL https://screepers.github.io/screeps-browser-ext/force-alpha-map.js?v=1783211638148
 // ==/UserScript==
 
 
