@@ -50,15 +50,15 @@
     }
 
     function getCurrentRoom() {
-        return angular.element('.room.ng-scope').scope()?.Room;
+        return angular.element(".room.ng-scope").scope()?.Room;
     }
 
     async function overrideRoom() {
         await ScreepsAdapter.waitFor(() => getCurrentRoom());
-        const buttons = [...document.querySelectorAll('button')];
-        const mapButton = buttons.find(b => b.getAttribute("ng-click=")?.startsWith('Room.goToMap'));
+        const buttons = [...document.querySelectorAll("button")];
+        const mapButton = buttons.find(b => b.getAttribute("ng-click=")?.startsWith("Room.goToMap"));
         if (mapButton) {
-            mapButton.addEventListener('click', e => {
+            mapButton.addEventListener("click", e => {
                 getCurrentRoom().goToMap(e);
             }, true);
         }
@@ -80,9 +80,9 @@
 
             const newUrl = $routeSegment.getSegmentUrl("top.map2shard") + "?" + query.toString();
             if (e.ctrlKey || e.metaKey) {
-                const prefix = $location.$$absUrl.substring(0, $location.$$absUrl.indexOf('#!') + 2);
+                const prefix = $location.$$absUrl.substring(0, $location.$$absUrl.indexOf("#!") + 2);
                 const url = prefix + newUrl;
-                window.open(url, '_blank');
+                window.open(url, "_blank");
             } else {
                 ScreepsAdapter.$location.url(newUrl);
             }
@@ -131,7 +131,7 @@
         }
     }
 
-    ScreepsAdapter.ready(async () =>{
+    ScreepsAdapter.ready(async () => {
         console.warn("AlphaMap: Loaded");
 
         ScreepsAdapter.onViewChange(async (triggerName) => {
@@ -142,7 +142,7 @@
                 const queryLoc = hash.indexOf("?");
                 const queryStr = queryLoc !== -1 ? "?" + hash.substring(queryLoc) : "";
                 const url = ScreepsAdapter.$routeSegment.getSegmentUrl("top.map2shard") + queryStr;
-                console.warn('AlphaMap: redirecting to', url);
+                console.warn("AlphaMap: redirecting to", url);
                 ScreepsAdapter.$location.url(url);
             } else if (triggerName === "top.map2shard") {
                 // Restore alpha map settings; not sure why it's not doing that automatically but hey

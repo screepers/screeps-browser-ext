@@ -1,19 +1,19 @@
 // ==UserScript==
-// @name         Console Shard Coloring
-// @namespace    https://screeps.com/
-// @version      1.1.1
-// @description  This tweaks the background colors of console logs from each shard to improve clarity
-// @author       Traxus
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        http://*.localhost/(*)/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadURL  REPO_URL/console-shard-color.js
+// @name        Console Shard Coloring
+// @namespace   https://screeps.com/
+// @version     1.1.1
+// @description This tweaks the background colors of console logs from each shard to improve clarity
+// @author      Traxus
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       http://*.localhost/(*)/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @downloadURL REPO_URL/console-shard-color.js
 // ==/UserScript==
 
 (function() {
-    'use strict';
+    "use strict";
 
     log("TamperMonkey - Loaded Console Shard Coloring");
 
@@ -32,11 +32,11 @@
     function convertHexToRGB(h) {
         let r = 0, g = 0, b = 0;
 
-        if (h.length == 4) {
+        if (h.length === 4) {
             r = parseInt(h[1] + h[1], 16);
             g = parseInt(h[2] + h[2], 16);
             b = parseInt(h[3] + h[3], 16);
-        } else if (h.length == 7) {
+        } else if (h.length === 7) {
             r = parseInt(h[1] + h[2], 16);
             g = parseInt(h[3] + h[4], 16);
             b = parseInt(h[5] + h[6], 16);
@@ -78,13 +78,13 @@
             l = 0;
 
         // Calculate hue
-        if (delta == 0) {
+        if (delta === 0) {
             // No difference
             h = 0;
-        } else if (cmax == r) {
+        } else if (cmax === r) {
             // Red is max
             h = ((g - b) / delta) % 6;
-        } else if (cmax == g) {
+        } else if (cmax === g) {
             // Green is max
             h = (b - r) / delta + 2;
         } else {
@@ -102,7 +102,7 @@
         l = (cmax + cmin) / 2;
 
         // Calculate saturation
-        s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+        s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
 
         // Multiply l and s by 100
         s = +(s * 100).toFixed(1);
@@ -161,8 +161,8 @@
         const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8); // hash the message
         const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
         const hashHex = hashArray
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join(""); // convert bytes to hex string
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join(""); // convert bytes to hex string
         return hashHex;
     }
 
@@ -190,14 +190,6 @@
         return h;
     }
 
-    function getCurrentShard() {
-        const currentShardName = window.location.hash.match(/^#!\/room\/([^\/]*)/)?.[1];
-        if (!currentShardName) {
-            throw new Error("Failed to get shard name");
-        }
-        return currentShardName;
-    }
-
     /**
      * Get a color from a shard name
      * @param {string} shardName
@@ -220,16 +212,6 @@
 
         return color;//colors[shardName] ?? baseColor;
     }
-
-    async function testColors() {
-        const shards = ["shard0", "shard1", "shard2", "shard3", "random"];
-        for (const shard of shards) {
-            const color = await colorForShard(shard);
-            log("final color for shard:", shard, "color:", color);
-        }
-    }
-
-    //setTimeout(testColors, 0);
 
     async function loop() {
 

@@ -1,31 +1,32 @@
 // ==UserScript==
-// @name         Screeps room claim assistant
-// @namespace    https://screeps.com/
-// @version      0.1.10
-// @author       James Cook
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        https://screeps.com/season/*
-// @match        http://*.localhost/(*)/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require      REPO_URL/screeps-browser-core.js
-// @downloadURL  REPO_URL/room-claim-assistant.user.js
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_registerMenuCommand
-// @grant        GM_unregisterMenuCommand
+// @name        Screeps room claim assistant
+// @namespace   https://screeps.com/
+// @version     0.1.10
+// @author      James Cook
+// @description Assist with room claiming by showing claim stats on the map
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @match       http://*.localhost/(*)/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @require     REPO_URL/screeps-browser-core.js
+// @downloadURL REPO_URL/room-claim-assistant.user.js
+// @grant       GM_getValue
+// @grant       GM_setValue
+// @grant       GM_registerMenuCommand
+// @grant       GM_unregisterMenuCommand
 // ==/UserScript==
 
-let ignoreSigns = GM_getValue('ignoreSigns');
+let ignoreSigns = GM_getValue("ignoreSigns");
 
-const getCmd = () => ignoreSigns ? 'Ignore signs: Enabled (Click to Disable)' : 'Ignore signs: Disabled (Click to Enable)';
+const getCmd = () => ignoreSigns ? "Ignore signs: Enabled (Click to Disable)" : "Ignore signs: Disabled (Click to Enable)";
 GM_registerMenuCommand(getCmd(), function onCommand() {
-  GM_unregisterMenuCommand(getCmd());
-  ignoreSigns = !ignoreSigns;
-  GM_setValue('ignoreSigns', ignoreSigns);
-  GM_registerMenuCommand(getCmd(), onCommand);
-  angular.element('.world-map.ng-scope').scope().$broadcast("recalcMapSectors")
+    GM_unregisterMenuCommand(getCmd());
+    ignoreSigns = !ignoreSigns;
+    GM_setValue("ignoreSigns", ignoreSigns);
+    GM_registerMenuCommand(getCmd(), onCommand);
+    angular.element(".world-map.ng-scope").scope().$broadcast("recalcMapSectors")
 });
 
 /**
@@ -63,7 +64,7 @@ function getRoomObjectCounts(shardName, roomName, callback) {
     }
 }
 
-var interceptingApiPost = false;
+let interceptingApiPost = false;
 function interceptClaim0StatsRequest() {
     if (interceptingApiPost) return;
     interceptingApiPost = true;
@@ -82,10 +83,10 @@ function interceptClaim0StatsRequest() {
 function recalculateClaimOverlay() {
     // console.log("recalculateClaimOverlay");
     let user = angular.element(document.body).scope().Me();
-    let mapContainerElem = angular.element('.map-container');
+    let mapContainerElem = angular.element(".map-container");
     let worldMap = mapContainerElem.scope().WorldMap;
 
-    let mapSectors = document.querySelectorAll('.map-sector');
+    let mapSectors = document.querySelectorAll(".map-sector");
     for (let i = 0; i < mapSectors.length; i++) {
         let sectorElem = angular.element(mapSectors[i]);
         let scope = sectorElem.scope();
@@ -130,7 +131,7 @@ function recalculateClaimOverlay() {
                 }
 
                 /** @type {HTMLDivElement | null} */
-                let claimAssistDiv = sectorElem[0].querySelector('.claim-assist');
+                let claimAssistDiv = sectorElem[0].querySelector(".claim-assist");
                 if (!claimAssistDiv) {
                     claimAssistDiv = document.createElement("div");
                     sectorElem[0].appendChild(claimAssistDiv);
@@ -144,7 +145,7 @@ function recalculateClaimOverlay() {
                                 ${roomStats.minerals0.type}
                             </div>`;
                     } else {
-                        claimAssistDiv.innerHTML = '';
+                        claimAssistDiv.innerHTML = "";
                     }
 
                     claimAssistDiv.classList.add("room-stats", "claim-assist", state);
@@ -156,14 +157,14 @@ function recalculateClaimOverlay() {
     }
 }
 
-var pendingClaimRedraws = 0;
+let pendingClaimRedraws = 0;
 function bindMapStatsMonitor() {
     let mapContainerElem = angular.element(".map-container");
     let scope = mapContainerElem.scope();
     let worldMap = scope.WorldMap;
 
     let deferRecalculation = function () {
-        document.querySelectorAll('.claim-assist').forEach(e => e.remove());
+        document.querySelectorAll(".claim-assist").forEach(e => e.remove());
 
         if (worldMap.displayOptions.layer === "claim0") {
             if (worldMap.zoom === 3) {
@@ -172,7 +173,7 @@ function bindMapStatsMonitor() {
                     pendingClaimRedraws--;
                     if (pendingClaimRedraws === 0) {
                         recalculateClaimOverlay();
-                        document.querySelectorAll('.claim-assist').forEach(e => e.toggleAttribute("hidden", false));
+                        document.querySelectorAll(".claim-assist").forEach(e => e.toggleAttribute("hidden", false));
                     }
                 }, 500);
             }

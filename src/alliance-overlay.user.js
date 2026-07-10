@@ -1,18 +1,19 @@
 // ==UserScript==
-// @name         Screeps alliance overlay
-// @namespace    https://screeps.com/
-// @version      0.2.12
-// @author       James Cook
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        http://*.localhost/(*)/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadURL  REPO_URL/alliance-overlay.user.js
-// @grant        GM_xmlhttpRequest
-// @require      http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js
-// @require      REPO_URL/screeps-browser-core.js
-// @connect      www.leagueofautomatednations.com
+// @name        Screeps alliance overlay
+// @namespace   https://screeps.com/
+// @version     0.2.12
+// @author      James Cook
+// @description Overlay alliance relations on the world map
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       http://*.localhost/(*)/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @downloadURL REPO_URL/alliance-overlay.user.js
+// @grant       GM_xmlhttpRequest
+// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js
+// @require     REPO_URL/screeps-browser-core.js
+// @connect     www.leagueofautomatednations.com
 // ==/UserScript==
 
 const loanBaseUrl = "https://www.leagueofautomatednations.com";
@@ -92,11 +93,10 @@ function ensureAllianceData(callback) {
  * Stuff references to the alliance data in the world map object. Not clear whether this is actually doing useful things.
  */
 function exposeAllianceDataForAngular() {
-    let app = angular.element(document.body);
-    let $timeout = angular.element('body').injector().get('$timeout');
+    let $timeout = angular.element("body").injector().get("$timeout");
 
-    $timeout(()=>{
-        let worldMapElem = angular.element('.world-map');
+    $timeout(() => {
+        let worldMapElem = angular.element(".world-map");
         let worldMap = worldMapElem.scope().WorldMap;
 
         worldMap.allianceData = allianceData;
@@ -116,7 +116,7 @@ function exposeAllianceDataForAngular() {
  */
 function bindAllianceSetting() {
     let alliancesEnabled = localStorage.getItem("alliancesEnabled") !== "false";
-    let worldMapElem = angular.element('.world-map');
+    let worldMapElem = angular.element(".world-map");
     let worldMap = worldMapElem.scope().WorldMap;
 
     worldMap.displayOptions.alliances = alliancesEnabled;
@@ -128,7 +128,7 @@ function bindAllianceSetting() {
         if (worldMap.displayOptions.alliances && !worldMap.userAlliances) {
             ensureAllianceData(exposeAllianceDataForAngular);
         } else {
-            document.querySelectorAll('.alliance-logo').forEach(n => n.remove());
+            document.querySelectorAll(".alliance-logo").forEach(n => n.remove());
         }
     };
 
@@ -168,7 +168,7 @@ function addAllianceToggle() {
         section.world-map .map-container .layer-select { right: 90px; } \
     ");
 
-    let mapContainerElem = angular.element('.map-container');
+    let mapContainerElem = angular.element(".map-container");
     let compiledContent = DomHelper.generateCompiledElement(mapContainerElem, content);
     $(compiledContent).appendTo(mapContainerElem);
 }
@@ -183,9 +183,9 @@ function addAllianceToInfoOverlay() {
             </span>\
         </div>";
 
-    let mapFloatElem = angular.element('.map-float-info');
+    let mapFloatElem = angular.element(".map-float-info");
     let compiledContent = DomHelper.generateCompiledElement(mapFloatElem, content);
-    $(compiledContent).insertAfter($(mapFloatElem).children('.owner')[0]);
+    $(compiledContent).insertAfter($(mapFloatElem).children(".owner")[0]);
 }
 
 function recalculateAllianceOverlay() {
@@ -206,11 +206,11 @@ function recalculateAllianceOverlay() {
             let userName = worldMap.roomUsers[roomStats.own.user].username;
             let allianceKey = worldMap.userAlliance[userName];
             if (allianceKey) {
-                $(roomDiv).addClass('alliance-' + allianceKey);
+                $(roomDiv).addClass("alliance-" + allianceKey);
 
                 $(roomDiv).removeClass("alliance-logo-1 alliance-logo-2 alliance-logo-3");
-                $(roomDiv).css('left', left);
-                $(roomDiv).css('top', top);
+                $(roomDiv).css("left", left);
+                $(roomDiv).css("top", top);
                 $(roomDiv).addClass("alliance-logo-" + worldMap.zoom);
 
                 $(mapContainerElem).append(roomDiv);
@@ -223,10 +223,10 @@ function recalculateAllianceOverlay() {
         let roomPixels;
         let roomsPerSectorEdge;
         switch (worldMap.zoom) {
-            case 1: { roomPixels = 20;  roomsPerSectorEdge = 10; break; }
-            case 2: { roomPixels = 50;  roomsPerSectorEdge =  4; break; }
-            case 3: { roomPixels = 150; roomsPerSectorEdge =  1; break; }
-            default: return;
+        case 1: { roomPixels = 20;  roomsPerSectorEdge = 10; break; }
+        case 2: { roomPixels = 50;  roomsPerSectorEdge =  4; break; }
+        case 3: { roomPixels = 150; roomsPerSectorEdge =  1; break; }
+        default: return;
         }
 
         let posStr = $location.search().pos;
@@ -234,7 +234,7 @@ function recalculateAllianceOverlay() {
 
         //if (worldMap.zoom !== 3) return; // Alliance images are pretty ugly at high zoom.
 
-        for (var u = 0; u < worldMap.sectors.length; u++) {
+        for (let u = 0; u < worldMap.sectors.length; u++) {
             let sector = worldMap.sectors[u];
             if (!sector || !sector.pos) continue;
 
@@ -272,7 +272,7 @@ function addSectorAllianceOverlay() {
 
     let deferRecalculation = function () {
         // remove alliance logos during redraws
-        document.querySelectorAll('.alliance-logo').forEach(n => n.remove());
+        document.querySelectorAll(".alliance-logo").forEach(n => n.remove());
 
         pendingRedraws++;
         setTimeout(() => {
@@ -288,18 +288,18 @@ function addSectorAllianceOverlay() {
 
 function addAllianceColumnToLeaderboard() {
     function deferredLeaderboardLoad() {
-        let leaderboardScope = angular.element('.leaderboard table').scope();
+        let leaderboardScope = angular.element(".leaderboard table").scope();
         if (leaderboardScope) {
-            let rows = angular.element('.leaderboard table tr')
+            let rows = angular.element(".leaderboard table tr")
             let leaderboard = leaderboardScope.$parent.LeaderboardList;
 
             ensureAllianceData(() => {
                 for (let i = 0; i < rows.length; i++) {
                     if (i === 0) {
-                        let playerElem = $(rows[i]).children('th:nth-child(2)');
+                        let playerElem = $(rows[i]).children("th:nth-child(2)");
                         $("<th class='alliance-leaderboard'>Alliance</th>").insertAfter(playerElem);
                     } else {
-                        let playerElem = $(rows[i]).children('td:nth-child(2)');
+                        let playerElem = $(rows[i]).children("td:nth-child(2)");
                         let userId = leaderboard.list[i - 1].user;
                         let userName = leaderboard.users[userId].username;
                         let allianceKey = userAlliance[userName];
@@ -321,7 +321,7 @@ function addAllianceColumnToLeaderboard() {
 ScreepsAdapter.ready(() => {
     ScreepsAdapter.onViewChange((view) => {
         if (view === "worldMapEntered") {
-            ScreepsAdapter.$timeout(()=> {
+            ScreepsAdapter.$timeout(() => {
                 bindAllianceSetting();
                 addAllianceToggle();
                 addAllianceToInfoOverlay();
@@ -332,7 +332,7 @@ ScreepsAdapter.ready(() => {
     });
 
     ScreepsAdapter.onHashChange((hash) => {
-        var match = hash.match(/#!\/(.+?)\//);
+        let match = hash.match(/#!\/(.+?)\//);
         if (match && match.length > 1 && match[1] === "rank") {
             let app = angular.element(document.body);
             let search = app.injector().get("$location").search();

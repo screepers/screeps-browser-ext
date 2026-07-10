@@ -1,30 +1,31 @@
 // ==UserScript==
-// @name         Migrate room to simulator
-// @namespace    https://screeps.com/
-// @version      1.4.2
-// @author       Mark Bertels, Esryok
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        https://screeps.com/season/*
-// @match        http://*.localhost/(*)/*
-// @run-at       context-menu
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @grant        none
-// @downloadURL  REPO_URL/migrate-screeps-room.user.js
+// @name        Migrate room to simulator
+// @namespace   https://screeps.com/
+// @version     1.4.2
+// @author      Mark Bertels, Esryok
+// @description Migrate room to simulator
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @match       http://*.localhost/(*)/*
+// @run-at      context-menu
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @grant       none
+// @downloadURL REPO_URL/migrate-screeps-room.user.js
 // ==/UserScript==
 
 /**
  * @param {any[]} terrain
  */
 function applyTerrain(terrain) {
-    var roomElement = angular.element('section.room');
-    var room = roomElement.scope().Room;
-    var injector = roomElement.injector();
+    let roomElement = angular.element("section.room");
+    let room = roomElement.scope().Room;
+    let injector = roomElement.injector();
 
-    var memory = injector.get("MemoryStorage");
-    var terrainObj = memory.get("rooms.terrain");
+    let memory = injector.get("MemoryStorage");
+    let terrainObj = memory.get("rooms.terrain");
 
-    var roomTerrainData = _.find(terrainObj, { room: "sim" });
+    let roomTerrainData = _.find(terrainObj, { room: "sim" });
     roomTerrainData.terrain = terrain;
 
     ScreepsAdapter.Connection.getRoomTerrain().then((data) => {
@@ -38,10 +39,9 @@ function applyTerrain(terrain) {
  * @returns
  */
 function adjustRoomDataForCustomMode(roomData) {
-    var gameElement = angular.element(document.body);
-    var memory = gameElement.injector().get("MemoryStorage");
+    let gameElement = angular.element(document.body);
 
-    let currentTime = angular.element('section.room').scope().Room.gameTime;
+    let currentTime = angular.element("section.room").scope().Room.gameTime;
     console.log("current time is", currentTime);
 
     let forceUser = gameElement.injector().get("Auth").Me;
@@ -59,7 +59,7 @@ function adjustRoomDataForCustomMode(roomData) {
 
         if (object.ageTime)
             object.ageTime = Math.max(1, object.ageTime - currentTime);
-            console.log(object.name, object.ageTime);
+        console.log(object.name, object.ageTime);
 
         if (object.user)
             object.user = forceUser._id;
@@ -69,7 +69,7 @@ function adjustRoomDataForCustomMode(roomData) {
 }
 
 function migrateRoomToSimulation() {
-    var open = window.open;
+    let open = window.open;
     // @ts-expect-error
     window.open = () => {
         return {
@@ -80,22 +80,23 @@ function migrateRoomToSimulation() {
                     console.log("Room data cached");
                     let roomData = adjustRoomDataForCustomMode(JSON.parse(savedRoomText));
 
-                    var gameElement = angular.element(document.body);
-                    var memory = gameElement.injector().get("MemoryStorage");
-                    var destroyWatcher = gameElement.scope().$watch(function () { return (memory.get("gametime")); }, function (newVal, oldVal) {
+                    let gameElement = angular.element(document.body);
+                    let memory = gameElement.injector().get("MemoryStorage");
+                    let destroyWatcher = gameElement.scope().$watch(function () {
+                        return (memory.get("gametime")); 
+                    }, function (newVal, oldVal) {
                         console.log("game time changed", oldVal, "=>", newVal);
                         if (newVal === 1) {
                             console.log("Sim room ready");
                             try {
-                                var roomScope_1 = angular.element('section.room').scope();
-                                var room_1 = roomScope_1.Room;
+                                let roomScope1 = angular.element("section.room").scope();
+                                let room1 = roomScope1.Room;
                                 console.log("Applying terrain...");
                                 applyTerrain(roomData.terrain[0].terrain);
                                 console.log("Restoring...");
-                                room_1.restoreData = JSON.stringify(roomData);
-                                room_1.restore();
-                            }
-                            catch (e) {
+                                room1.restoreData = JSON.stringify(roomData);
+                                room1.restore();
+                            } catch (e) {
                                 console.log("Migration failed", e);
                             }
                             destroyWatcher();
@@ -108,8 +109,8 @@ function migrateRoomToSimulation() {
         };
     };
 
-    var roomScope = angular.element('section.room').scope();
-    var room = roomScope.Room;
+    let roomScope = angular.element("section.room").scope();
+    let room = roomScope.Room;
     room.save();
 }
 

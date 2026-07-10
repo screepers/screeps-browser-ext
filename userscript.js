@@ -1,6 +1,6 @@
 
-const USERSCRIPT_START_MARKER = '==UserScript==';
-const USERSCRIPT_END_MARKER = '==/UserScript==';
+const USERSCRIPT_START_MARKER = "==UserScript==";
+const USERSCRIPT_END_MARKER = "==/UserScript==";
 
 class Header {
     /** @type {string} */
@@ -52,7 +52,9 @@ class HeaderList {
      */
     getAll(name) {
         const headers = this.#getHeaders(name);
-        const all = headers.map((h, idx) => { h.index = idx; return h; });
+        const all = headers.map((h, idx) => {
+            h.index = idx; return h; 
+        });
         return all;
     }
 
@@ -104,82 +106,82 @@ class HeaderList {
 }
 
 export class Userscript {
-  /** @type {HeaderList} */
-  #headers;
-  #script;
+    /** @type {HeaderList} */
+    #headers;
+    #script;
 
-  /**
+    /**
    *
    * @param {string} contents
    */
-  constructor(contents) {
-    this.#headers = new HeaderList();
-    const end = contents.indexOf(USERSCRIPT_END_MARKER);
-    if (end === -1) {
-      console.info('marker end not found');
-      this.#script = contents;
-      return;
+    constructor(contents) {
+        this.#headers = new HeaderList();
+        const end = contents.indexOf(USERSCRIPT_END_MARKER);
+        if (end === -1) {
+            console.info("marker end not found");
+            this.#script = contents;
+            return;
+        }
+        const nextNewline = contents.indexOf("\n", end);
+        if (nextNewline === -1) {
+            console.info("next newline not found");
+            this.#script = contents;
+            return;
+        }
+        const headers = contents.slice(0, nextNewline);
+        this.#script = contents.slice(nextNewline);
+        this._parseHeaders(headers);
     }
-    const nextNewline = contents.indexOf("\n", end);
-    if (nextNewline === -1) {
-      console.info('next newline not found');
-      this.#script = contents;
-      return;
-    }
-    const headers = contents.slice(0, nextNewline);
-    this.#script = contents.slice(nextNewline);
-    this._parseHeaders(headers);
-  }
 
-  /**
+    /**
    * @param {string} headerBlock
    */
-  _parseHeaders(headerBlock) {
-    let match;
-    let currentIndex = 0;
+    _parseHeaders(headerBlock) {
+        let match;
+        let currentIndex = 0;
 
-    while ((match = /^\/\/\s+@(?<name>[-A-Za-z]*)\s+(?<value>.*)$/gmd.exec(headerBlock.slice(currentIndex))) !== null) {
-      const { name, value } = match.groups ?? {};
-      const [_startIndex, endIndex] = match.indices?.[0] ?? [0, 0];
-      this.#headers.add(name, value);
-      currentIndex += endIndex;
+        while ((match = /^\/\/\s+@(?<name>[-A-Za-z]*)\s+(?<value>.*)$/gmd.exec(headerBlock.slice(currentIndex))) !== null) {
+            const { name, value } = match.groups ?? {};
+            const [, endIndex] = match.indices?.[0] ?? [0, 0];
+            this.#headers.add(name, value);
+            currentIndex += endIndex;
+        }
     }
-  }
 
-  get headers() {
-    const self = this;
-    return {
+    get headers() {
+        const self = this;
+        return {
         /** @param {string} name  */
-        get(name) {
-            return self.#headers.get(name);
-        },
-        /**
+            get(name) {
+                return self.#headers.get(name);
+            },
+            /**
          * @param {string} name
          * @returns {[value: string, index: number][]}
          */
-        getAll(name) {
-            return self.#headers.getAll(name)?.map(h => [h.value, h.index]) ?? [];
-        },
-        /**
+            getAll(name) {
+                return self.#headers.getAll(name)?.map(h => [h.value, h.index]) ?? [];
+            },
+            /**
          * @param {string} name
          * @param {string} value
          * @param {number} [index]
          */
-        set(name, value, index) {
-            self.#headers.set(name, value, index);
-        }
-    };
-  }
+            set(name, value, index) {
+                self.#headers.set(name, value, index);
+            }
+        };
+    }
 
-  headerBlock() {
-    return this.#headers.output();
-  }
+    headerBlock() {
+        return this.#headers.output();
+    }
 
-  contents() {
-    return this.#script;
-  }
+    contents() {
+        return this.#script;
+    }
 
-  output() {
-    return this.headerBlock() + "\n" + this.#script;
-  }
+    output() {
+        return this.headerBlock() + "\n" + this.#script;
+    }
 }

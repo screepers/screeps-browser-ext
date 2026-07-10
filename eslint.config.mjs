@@ -13,43 +13,57 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
+/** @type {Partial<import("@eslint/core").RulesConfig>} */
+const rules = {
+    curly: "off",
+    "dot-location": ["error", "property"],
+    eqeqeq: "warn",
+    "linebreak-style": ["error", "unix"],
+    "no-else-return": "warn",
+    "no-eval": "error",
+    "no-octal": "error",
+    "no-with": "error",
+    radix: "error",
+    "brace-style": "warn",
+    camelcase: "error",
+    indent: ["error", 4],
+    "no-array-constructor": "error",
+
+    quotes: ["error", "double", {
+        allowTemplateLiterals: true,
+        avoidEscape: true,
+    }],
+
+    "arrow-spacing": "error",
+    "no-var": "error",
+    "no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+    }],
+}
+
 export default defineConfig([{
     ignores: ["public/"],
-}, {
+},
+{
+    files: ["build.js", "userscript.js", "eslint.config.mjs"],
+    languageOptions: {
+        sourceType: "module",
+    },
+    rules: rules,
+},
+{
+    ignores: ["build.js", "userscript.js", "eslint.config.mjs"],
     languageOptions: {
         globals: {
             ...globals.browser,
             ...globals.greasemonkey,
         },
 
-        ecmaVersion: 11,
+        ecmaVersion: 2022,
         sourceType: "script",
     },
 
-    rules: {
-        curly: "warn",
-        "dot-location": ["error", "property"],
-        eqeqeq: "warn",
-        "linebreak-style": ["error", "unix"],
-        "no-else-return": "warn",
-        "no-eval": "error",
-        "no-octal": "error",
-        "no-with": "error",
-        radix: "error",
-        "brace-style": "warn",
-        camelcase: "error",
-        indent: ["error", 2],
-        "no-array-constructor": "error",
-
-        quotes: ["error", "double", {
-            allowTemplateLiterals: true,
-            avoidEscape: true,
-        }],
-
-        "arrow-spacing": "error",
-        "no-var": "error",
-        "no-unused-vars": "warn",
-    },
+    rules: rules,
 }, {
     files: ["**/*.user.js"],
     extends: compat.extends("plugin:userscripts/recommended"),

@@ -1,16 +1,17 @@
 // ==UserScript==
-// @name         Screeps visible room tracker
-// @namespace    https://screeps.com/
-// @version      0.1.4
-// @author       James Cook
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        https://screeps.com/season/*
-// @match        http://*.localhost/(*)/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require      REPO_URL/screeps-browser-core.js
-// @downloadURL  REPO_URL/visible-room-tracker.user.js
+// @name        Screeps visible room tracker
+// @namespace   https://screeps.com/
+// @version     0.1.4
+// @author      James Cook
+// @description Track which rooms are currently visible in the viewport
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @match       http://*.localhost/(*)/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @require     REPO_URL/screeps-browser-core.js
+// @downloadURL REPO_URL/visible-room-tracker.user.js
 // ==/UserScript==
 
 // Entry point
@@ -20,7 +21,7 @@ ScreepsAdapter.ready(() => {
         console.log("Visible room changed to:", roomName);
 
         function notifyCurrentRoomVisibility() {
-            let roomElem = angular.element('.room');
+            let roomElem = angular.element(".room");
             let roomScope = roomElem.scope();
 
             let tick = roomScope.Room.gameTime;
@@ -34,7 +35,7 @@ ScreepsAdapter.ready(() => {
         }
 
         function ensureRoomMonitor() {
-            let roomElem = angular.element('.room');
+            let roomElem = angular.element(".room");
             if (!roomElem || roomElem.length === 0) {
                 setTimeout(ensureRoomMonitor, 250);
                 return;

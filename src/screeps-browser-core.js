@@ -38,8 +38,8 @@
         const startTime = Date.now();
 
         while (true) {
-            if (typeof(timeoutAfter) === 'number' && Date.now() > startTime + timeoutAfter) {
-                throw new Error('Condition not met before timeout');
+            if (typeof(timeoutAfter) === "number" && Date.now() > startTime + timeoutAfter) {
+                throw new Error("Condition not met before timeout");
             }
 
             const result = await condition();
@@ -63,8 +63,8 @@
         let head = document.head;
         if (!head) return;
 
-        let style = document.createElement('style');
-        style.type = 'text/css';
+        let style = document.createElement("style");
+        style.type = "text/css";
         style.innerHTML = css;
 
         head.appendChild(style);
@@ -174,7 +174,7 @@
             if (!rootScope.viewChangeCallbacks) {
                 const injector = angular.element(document.body).injector();
 
-                const $routeSegment = injector.get('$routeSegment');
+                const $routeSegment = injector.get("$routeSegment");
                 rootScope.$watch(() => $routeSegment.name,
                     /**
                      * @param {string} newName
@@ -217,12 +217,7 @@
             const rootScope = angular.element(document.body).scope();
             if (!rootScope.hashChangeCallbacks) {
                 rootScope.$watch(() => window.location.hash,
-                    /**
-                     *
-                     * @param {string} newVal
-                     * @param {string} oldVal
-                     */
-                    function(newVal, oldVal) {
+                    function() {
                         try {
 
                             for (let i in rootScope.hashChangeCallbacks) {
@@ -247,7 +242,7 @@
      * @param {(roomName: string) => void} callback - the name of the new room
      */
     ScreepsAdapter.onRoomChange = function (callback) {
-        ScreepsAdapter.onHashChange((hash) => {
+        ScreepsAdapter.onHashChange(() => {
             let rootScope = angular.element(document.body).scope();
             let $routeParams = angular.element(document.body).injector().get("$routeParams");
             let room = $routeParams.room;
@@ -334,7 +329,7 @@
                     const roomViews = ["top.game-room", "top.sim-custom", "top.sim-survival", "top.sim-tutorial"];
                     if (watch) watch();
                     if (roomViews.includes(viewName)) {
-                        watchSelectedObject((newObj, oldObj) => {
+                        watchSelectedObject((newObj) => {
                             notifySelectionWatchers(newObj);
                         }).then((watcher) => watch = watcher);
                     }
@@ -366,7 +361,7 @@
      * - AlertService
      */
     ScreepsAdapter.showDialog = function(data) {
-        angular.element('body').injector().get('AlertService').show({ data });
+        angular.element("body").injector().get("AlertService").show({ data });
     };
 
     // aliases to angular services

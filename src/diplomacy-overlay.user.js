@@ -1,17 +1,19 @@
 // ==UserScript==
-// @name         Screeps diplomacy overlay
-// @namespace    https://screeps.com/
-// @version      0.2.4
-// @author       James Cook
-// @match        https://screeps.com/a/*
-// @match        https://screeps.com/ptr/*
-// @match        https://screeps.com/season/*
-// @match        http://*.localhost/(*)/*
-// @run-at       document-ready
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require      REPO_URL/screeps-browser-core.js
-// @downloadURL  REPO_URL/diplomacy-overlay.user.js
+// @name        Screeps diplomacy overlay
+// @namespace   https://screeps.com/
+// @version     0.2.4
+// @author      James Cook
+// @description Overlay diplomacy relations on the world map
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @match       http://*.localhost/(*)/*
+// @run-at      document-ready
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @require     REPO_URL/screeps-browser-core.js
+// @downloadURL REPO_URL/diplomacy-overlay.user.js
 // ==/UserScript==
+
 // @ts-nocheck
 
 /** @type {{ [userId: string]: RGBColor }} */
@@ -61,7 +63,7 @@ const zombieColor = [128, 128, 128];
  */
 function hslToRGB(a, b, c) {
     0 > a && (a += 360);
-    var d, e, f, g = (1 - Math.abs(2 * c - 1)) * b, h = a / 60, i = g * (1 - Math.abs(h % 2 - 1));
+    let d, e, f, g = (1 - Math.abs(2 * c - 1)) * b, h = a / 60, i = g * (1 - Math.abs(h % 2 - 1));
     void 0 === a || isNaN(a) || null === a ? d = e = f = 0 : h >= 0 && 1 > h ? (d = g,
     e = i,
     f = 0) : h >= 1 && 2 > h ? (d = i,
@@ -75,7 +77,7 @@ function hslToRGB(a, b, c) {
     f = g) : h >= 5 && 6 > h && (d = g,
     e = 0,
     f = i);
-    var j, k, l, m = c - g / 2;
+    let j, k, l, m = c - g / 2;
     return j = 255 * (d + m),
     k = 255 * (e + m),
     l = 255 * (f + m),
@@ -98,11 +100,11 @@ function generateAndSetColor(userid, userName) {
     }
 
     switch (diplomacyScore) {
-        case -1: color = generateColor(-15, .8, .4); break;
-        case  1: color = generateColor(210, .8, .5); break;
+    case -1: color = generateColor(-15, .8, .4); break;
+    case  1: color = generateColor(210, .8, .5); break;
 
-        default:
-        case  0: color = generateColor(40, .8, .35); break;
+    default:
+    case  0: color = generateColor(40, .8, .35); break;
     }
     colorMap[userid] = color;
 
@@ -117,11 +119,11 @@ function getColor(type) {
     if (!color) {
         /** @type {{[type: string]: { username: string }}} */
         let userMap = {};
-        if (angular.element('.world-map').length) {
-            let worldMap = angular.element('.world-map').scope().WorldMap;
+        if (angular.element(".world-map").length) {
+            let worldMap = angular.element(".world-map").scope().WorldMap;
             userMap = worldMap.roomUsers;
         } else {
-            let room = angular.element('.room').scope().Room;
+            let room = angular.element(".room").scope().Room;
             userMap = room.users;
         }
 
@@ -144,8 +146,8 @@ function getColor(type) {
  */
 function colorPositions(image, positions, color, mapScale) {
     if (positions && positions.length) {
-        for (var e = 0; mapScale > e; e++) {
-            for (var f = 0; mapScale > f; f++) {
+        for (let e = 0; mapScale > e; e++) {
+            for (let f = 0; mapScale > f; f++) {
                 positions.forEach(function(pos) {
                     image.data[50 * mapScale * (mapScale * pos[1] + f) * 4 + 4 * (mapScale * pos[0] + e) + 0] = color[0];
                     image.data[50 * mapScale * (mapScale * pos[1] + f) * 4 + 4 * (mapScale * pos[0] + e) + 1] = color[1];
@@ -157,7 +159,6 @@ function colorPositions(image, positions, color, mapScale) {
     }
 }
 
-let diplomacyDataLoaded = false;
 /**
  * @type {{ users: Record<string, { state: number }> }}
  */
@@ -168,7 +169,6 @@ let diplomacyData;
  */
 function ensureDiplomacyData(callback) {
     ScreepsAdapter.Connection.getMemoryByPath(ScreepsAdapter.User._id, "diplomacy").then((data) => {
-        diplomacyDataLoaded = true;
         if (!data) {
             console.log("No diplomacy data available");
         } else {
@@ -220,18 +220,17 @@ function recalculateWorldMapDiplomacyOverlay() {
     content.width = 150;
     content.setAttribute("map-scale", "3");
 
-    let mapFloatElem = angular.element('.map-float-info');
-    let mapContainerElem = angular.element('.map-container');
+    let mapContainerElem = angular.element(".map-container");
     let worldMap = mapContainerElem.scope().WorldMap;
 
-    let mapSectors = document.querySelectorAll('.map-sector');
+    let mapSectors = document.querySelectorAll(".map-sector");
     for (let i = 0; i < mapSectors.length; i++) {
         let sectorElem = angular.element(mapSectors[i]);
         let scope = sectorElem.scope();
         let sector = scope.$parent.sector;
         let roomHandle = worldMap.shard + "/" + sector.name;
 
-        let element = sectorElem[0].querySelectorAll('.room-diplomacy-objects');
+        let element = sectorElem[0].querySelectorAll(".room-diplomacy-objects");
         if (element.length) {
             if (element[0].roomHandle !== roomHandle) {
                 if (element[0].listenerEvent) {
@@ -253,7 +252,7 @@ function deferWorldMapDiplomacyRedraw() {
     let scope = angular.element(".map-container").scope();
     let worldMap = scope.WorldMap;
 
-    const content = document.querySelectorAll('.room-diplomacy-objects');
+    const content = document.querySelectorAll(".room-diplomacy-objects");
     for (const elem of content) {
         elem.toggleAttribute("hidden", true);
         if (elem.listenerEvent) elem.listenerEvent.remove();
@@ -284,7 +283,7 @@ function replaceUnitsToggle() {
     if (document.querySelector("#diplomacy-units"))
         return;
 
-    let mapContainerElem = angular.element('.map-container');
+    let mapContainerElem = angular.element(".map-container");
     let worldMap = mapContainerElem.scope().WorldMap;
     worldMap.displayOptions.units = false;
     worldMap.displayOptions.diplomacyUnits = localStorage.getItem("diplomacyUnits") !== "false";
@@ -316,19 +315,19 @@ function bindRoomStatsMonitor() {
     content.height = 50;
     content.width = 50;
     content.setAttribute("map-scale", "1");
-    document.querySelectorAll('.room-diplomacy-objects').forEach(e => e.remove());
+    document.querySelectorAll(".room-diplomacy-objects").forEach(e => e.remove());
 
     function deferredMinimapOverlay() {
-        let minimapRoot = angular.element('.world-minimap');
+        let minimapRoot = angular.element(".world-minimap");
         if (minimapRoot.length) {
             ensureDiplomacyData(() => {
-                let roomOverlays = document.querySelectorAll('.world-minimap canvas.room-objects');
+                let roomOverlays = document.querySelectorAll(".world-minimap canvas.room-objects");
                 for (let i = 0; i < roomOverlays.length; i++) {
                     let roomOverlayElem = angular.element(roomOverlays[i]);
                     let scope = roomOverlayElem.scope();
                     let roomHandle = roomOverlayElem[0].getAttribute("app:game-map-room-objects");
 
-                    let element = roomOverlayElem.parent().find('.room-diplomacy-objects');
+                    let element = roomOverlayElem.parent().find(".room-diplomacy-objects");
                     if (element.length) {
                         if (element[0].roomHandle !== roomHandle) {
                             if (element[0].listenerEvent) {
