@@ -7,8 +7,25 @@ interface ShowDialogOptions {
      message?: string;
 }
 
+interface MapButtonOptions {
+    /** Unique identifier; also used to avoid duplicate registration */
+    id: string;
+    tooltip: string;
+    content: string;
+    ngClick: string;
+    /** Additional Angular visibility expression */
+    ngIf?: string;
+    /** Angular ng-class object expression, without outer braces */
+    ngClass?: string;
+    /** Zoom levels where the button is shown (1–3) */
+    zoomLevels?: number[];
+    /** Hides the native units button and takes its toolbar slot */
+    replacesUnits?: boolean;
+}
+
 declare var ScreepsAdapter: {
     VERSION: string;
+    loadId: string;
 
     /**
      * Polls every 50 milliseconds for a given condition
@@ -67,6 +84,8 @@ declare var ScreepsAdapter: {
      * Display a popup dialog
      */
     showDialog(data: ShowDialogOptions): void;
+
+    registerMapButton(options: MapButtonOptions): void;
 
     $location: {
         get $$absUrl(): string;

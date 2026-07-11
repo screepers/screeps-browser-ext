@@ -3,6 +3,7 @@ declare const unsafeWindow: Window & typeof globalThis;
 
 declare var _: import('lodash').LoDashStatic;
 declare var angular: import('angular').angular.IAngularStatic;
+declare var PIXI: any;
 // ace is also there, but we're seeing the latest version, which I'm not sure is what's actually used (the markers API is different)
 
 type RGBColor = [r: number, g: number, b: number];
@@ -15,11 +16,3 @@ declare function randomColor(opts: {
     seed: string;
     format: "hslArray";
 }): HSLColor;
-// XXX: not sure what's the story there
-declare var GM_xmlhttpRequest = GM.xmlHttpRequest;
-
-// greasemonkey API - Used in room-claim-assistant
-declare function GM_registerMenuCommand(name: string, callback: () => void): void;
-declare function GM_unregisterMenuCommand(name: string): void;
-declare function GM_getValue<T>(name: string, defaultValue?: T): T;
-declare function GM_setValue(name: string, value: any): void;

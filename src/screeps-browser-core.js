@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const VERSION = "0.3.1";
+    const VERSION = "0.4.0";
 
     /**
      * @param {string} a
@@ -387,6 +387,394 @@
     ScreepsAdapter.showDialog = function(data) {
         angular.element("body").injector().get("AlertService").show({ data });
     };
+
+    /** @type {MapButtonOptions[]} */
+    const mapButtons = [];
+    const MAP_BUTTON_SPACING = 40;
+    const MAP_BUTTON_BASE_RIGHT = 10;
+    /** @type {HTMLStyleElement | null} */
+    let mapButtonStyleElem = null;
+
+    /** @type {(() => void)[]} */
+    let mapButtonLayoutUnwatchers = [];
+    /** @type {any} */
+    let mapButtonSetupTimeout = null;
+
+    function ensureMapButtonBaseStyles() {
+        if (!mapButtonStyleElem) {
+            mapButtonStyleElem = document.createElement("style");
+            mapButtonStyleElem.id = "screeps-map-buttons-style";
+            mapButtonStyleElem.textContent = "\
+section.world-map .map-container .btn-units.map-ext-btn { font-size: 16px; padding: 4px; } \
+section.world-map .map-container.map-ext-replaces-units > .btn-units:not(.map-ext-btn) { display: none !important; } \
+section.world-map .map-container .map-ext-btn-bar { display: contents; } \
+section.world-map .map-container .layer-select ~ .layer-select { display: none !important; }";
+            document.head.appendChild(mapButtonStyleElem);
+        }
+    }
+
+    /**
+     * @returns {any}
+     */
+    function getMapScope() {
+        return angular.element(".map-container").scope();
+    }
+
+    /**
+     * @returns {any}
+     */
+    function getWorldMap() {
+        return getMapScope().WorldMap;
+    }
+
+    /**
+     * @param {string} content
+     */
+    function compileMapButton(content) {
+        const mapContainerElem = angular.element(".map-container");
+        const $compile = mapContainerElem.injector().get("$compile");
+        return $compile(content)(getMapScope());
+    }
+
+    /**
+     * @param {HTMLElement} mapContainer
+     */
+    function ensureMapButtonBarContainer(mapContainer) {
+        let bar = mapContainer.querySelector(".map-ext-btn-bar");
+        if (bar) {
+            return bar;
+        }
+
+        bar = document.createElement("div");
+        bar.className = "map-ext-btn-bar";
+        const anchor = mapContainer.querySelector(".room-search");
+        if (anchor && anchor.parentNode) {
+            anchor.parentNode.insertBefore(bar, anchor);
+        } else {
+            mapContainer.appendChild(bar);
+        }
+        return bar;
+    }
+
+    /**
+     * @param {HTMLElement} mapContainer
+     */
+    function clearMapButtonBar(mapContainer) {
+        log("clearing button bar");
+        const bar = mapContainer.querySelector(".map-ext-btn-bar");
+        if (bar) {
+            bar.innerHTML = "";
+        }
+        document.querySelectorAll("section.world-map .map-ext-btn").forEach((elem) => elem.remove());
+    }
+
+    /**
+     * @param {HTMLElement} mapContainer
+     */
+    function mapButtonBarNeedsRecreate(mapContainer) {
+        for (const button of mapContainer.querySelectorAll(".map-ext-btn")) {
+            const ngStyle = button.getAttribute("ng-style") || "";
+            if (!ngStyle.includes("getMapExtButtonRight")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param {HTMLElement} mapContainer
+     */
+    function ensureMapButtonsExist(mapContainer) {
+        const bar = ensureMapButtonBarContainer(mapContainer);
+        /** @type {string[]} */
+        const created = [];
+
+        for (const options of mapButtons) {
+            if (mapContainer.querySelector(`.map-ext-btn-${options.id}`)) {
+                continue;
+            }
+
+            $(compileMapButton(buildMapButtonContent(options))).appendTo(bar);
+            created.push(options.id);
+        }
+
+        if (created.length) {
+            log(`created buttons: ${created.join(", ")}`);
+        }
+    }
+
+    /**
+     * @param {MapButtonOptions} options
+     */
+    function buildMapButtonVisibilityExpr(options) {
+        const parts = [];
+        if (options.zoomLevels && options.zoomLevels.length > 0) {
+            parts.push(`(${options.zoomLevels.map((z) => `WorldMap.zoom == ${z}`).join(" || ")})`);
+        }
+        if (options.ngIf) {
+            parts.push(`(${options.ngIf})`);
+        }
+        return parts.length ? parts.join(" && ") : "";
+    }
+
+    /**
+     * @param {MapButtonOptions} options
+     */
+    function isMapButtonVisible(options) {
+        const expr = buildMapButtonVisibilityExpr(options);
+        if (!expr) {
+            return true;
+        }
+        const $parse = angular.element(document.body).injector().get("$parse");
+        return !!$parse(expr)(getMapScope());
+    }
+
+    function getVisibleMapButtons() {
+        return mapButtons.filter((btn) => isMapButtonVisible(btn));
+    }
+
+    /**
+     * @param {HTMLElement} mapContainer
+     */
+    function hasButtonReplacingNativeUnits(mapContainer) {
+        return mapButtons.some((btn) => {
+            if (!btn.replacesUnits || !isMapButtonVisible(btn)) {
+                return false;
+            }
+            return !!mapContainer.querySelector(`.map-ext-btn-${btn.id}`);
+        });
+    }
+
+    /**
+     * @param {HTMLElement | null | undefined} mapContainer
+     */
+    function applyNativeUnitsVisibility(mapContainer) {
+        const worldMap = getWorldMap();
+        if (!mapButtons.some((btn) => btn.replacesUnits)) {
+            return;
+        }
+        const replacingVisible = mapContainer
+            ? hasButtonReplacingNativeUnits(mapContainer)
+            : false;
+        worldMap.displayOptions.units = !replacingVisible;
+        if (mapContainer) {
+            mapContainer.classList.toggle("map-ext-replaces-units", replacingVisible);
+        }
+    }
+
+    /**
+     * @param {HTMLElement} mapContainer
+     */
+    function getToolbarMapButtons(mapContainer) {
+        return getVisibleMapButtons().filter(
+            (btn) => !!mapContainer.querySelector(`.map-ext-btn-${btn.id}`),
+        );
+    }
+
+    /**
+     * @param {HTMLElement} mapContainer
+     */
+    function getMapButtonBaseSlot(mapContainer) {
+        if (hasButtonReplacingNativeUnits(mapContainer)) {
+            return 0;
+        }
+        // Native units button is always in the toolbar at zoom 3.
+        if (getWorldMap().zoom == 3) { // eslint-disable-line eqeqeq
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * @param {HTMLElement | null | undefined} mapContainer
+     */
+    function assignButtonSlots(mapContainer) {
+        applyNativeUnitsVisibility(mapContainer);
+        if (!mapContainer) {
+            return { slots: {}, nextSlot: 0 };
+        }
+        const visible = getToolbarMapButtons(mapContainer);
+        /** @type {Record<string, number>} */
+        const slots = {};
+        let slot = getMapButtonBaseSlot(mapContainer);
+
+        for (const btn of visible) {
+            if (btn.replacesUnits) {
+                slots[btn.id] = slot++;
+            }
+        }
+        for (const btn of visible) {
+            if (!btn.replacesUnits) {
+                slots[btn.id] = slot++;
+            }
+        }
+
+        return { slots, nextSlot: slot };
+    }
+
+    /**
+     * @param {any} worldMap
+     * @param {HTMLElement} mapContainer
+     */
+    function installMapButtonLayoutHelpers(worldMap, mapContainer) {
+        delete worldMap.mapExtButtonStyles;
+        delete worldMap.mapExtLayerSelectStyle;
+        worldMap.getMapExtButtonRight = function(/** @type {string} */ id) {
+            const { slots } = assignButtonSlots(mapContainer);
+            if (!(id in slots)) {
+                return {};
+            }
+            return {
+                right: `${MAP_BUTTON_BASE_RIGHT + slots[id] * MAP_BUTTON_SPACING}px`,
+            };
+        };
+        worldMap.getMapExtLayerSelectStyle = function() {
+            const { nextSlot } = assignButtonSlots(mapContainer);
+            const style = {
+                right: `${MAP_BUTTON_BASE_RIGHT + nextSlot * MAP_BUTTON_SPACING}px`,
+            };
+            for (const layerSelect of mapContainer.querySelectorAll(".layer-select")) {
+                /** @type {HTMLElement} */ (layerSelect).style.right = style.right;
+            }
+            return style;
+        };
+    }
+
+    function syncLayerSelectPositions() {
+        const worldMap = getWorldMap();
+        if (typeof worldMap.getMapExtLayerSelectStyle === "function") {
+            worldMap.getMapExtLayerSelectStyle();
+        }
+    }
+
+    /**
+     * @param {any} mapContainerElem
+     */
+    function bindMapButtonLayoutWatcher(mapContainerElem) {
+        for (const unwatch of mapButtonLayoutUnwatchers) {
+            unwatch();
+        }
+        mapButtonLayoutUnwatchers = [];
+
+        const scope = getMapScope();
+        const worldMap = getWorldMap();
+        const $timeout = mapContainerElem.injector().get("$timeout");
+        const digest = () => scope.$evalAsync(() => {
+            syncLayerSelectPositions();
+        });
+
+        syncLayerSelectPositions();
+        digest();
+        $timeout(digest);
+
+        mapButtonLayoutUnwatchers.push(
+            scope.$watch(() => worldMap.zoom, digest),
+            scope.$watch(() => worldMap.displayOptions.layer, digest),
+            scope.$watch(
+                () => getVisibleMapButtons().map((btn) => btn.id).join(","),
+                digest,
+            ),
+            scope.$on("mapStatsUpdated", digest),
+            scope.$on("mapSectorsRecalced", digest),
+        );
+    }
+
+
+    /**
+     * @param {MapButtonOptions} options
+     */
+    function buildMapButtonContent(options) {
+        const expr = buildMapButtonVisibilityExpr(options);
+        const ngIf = expr ? `ng:if="${expr}"` : "";
+        const ngClass = options.ngClass ? `ng:class="{${options.ngClass}}"` : "";
+        return `\
+<md:button \
+    app-stop-click-propagation app-stop-propagation='mouseout mouseover mousemove' \
+    class='md-raised btn-units map-ext-btn map-ext-btn-${options.id}' \
+    ${ngIf} ${ngClass} \
+    ng:style="WorldMap.getMapExtButtonRight('${options.id}')" \
+    ng:click='${options.ngClick}' \
+    tooltip-placement='bottom' uib-tooltip='${options.tooltip}'>\
+        ${options.content}\
+</md:button>`;
+    }
+
+    function scheduleMapButtonBarSetup() {
+        log("scheduling button bar setup");
+        waitForAngular().then(() => {
+            const $timeout = angular.element(document.body).injector().get("$timeout");
+            if (mapButtonSetupTimeout) {
+                $timeout.cancel(mapButtonSetupTimeout);
+                log("debounced pending button bar setup");
+            }
+            mapButtonSetupTimeout = $timeout(() => {
+                mapButtonSetupTimeout = null;
+                setupMapButtonBar();
+            });
+        });
+    }
+
+    function setupMapButtonBar() {
+        const mapContainer = /** @type {HTMLElement | null} */ (document.querySelector(".map-container"));
+        if (!mapContainer) {
+            log("setup skipped (no .map-container)");
+            return;
+        }
+        if (mapButtons.length === 0) {
+            log("setup skipped (no buttons registered)");
+            return;
+        }
+
+        const registered = mapButtons.map((btn) => btn.id).join(", ");
+        log(`setup started (${registered})`);
+
+        const mapContainerElem = angular.element(mapContainer);
+        installMapButtonLayoutHelpers(getWorldMap(), mapContainer);
+        ensureMapButtonBaseStyles();
+
+        if (mapButtonBarNeedsRecreate(mapContainer)) {
+            log("recreating button bar (stale template)");
+            clearMapButtonBar(mapContainer);
+        }
+
+        ensureMapButtonsExist(mapContainer);
+        bindMapButtonLayoutWatcher(mapContainerElem);
+
+        const present = [...mapContainer.querySelectorAll(".map-ext-btn")].map(
+            (btn) => [...btn.classList].find((c) => c.startsWith("map-ext-btn-"))?.slice("map-ext-btn-".length),
+        ).filter(Boolean);
+        log(`setup done (in DOM: ${present.join(", ") || "none"})`);
+    }
+
+    /**
+     * Register a toggle button for the world map toolbar. Registration persists
+     * across view changes; buttons are created when the world map is shown.
+     *
+     * @param {MapButtonOptions} options
+     */
+    ScreepsAdapter.registerMapButton = function(options) {
+        if (mapButtons.some((btn) => btn.id === options.id)) {
+            log(`registerMapButton ${options.id} skipped (duplicate)`);
+            return;
+        }
+
+        const index = mapButtons.findIndex((btn) => btn.id.localeCompare(options.id) > 0);
+        if (index === -1) {
+            mapButtons.push(options);
+        } else {
+            mapButtons.splice(index, 0, options);
+        }
+
+        log(`registerMapButton ${options.id} (${mapButtons.length} registered)`);
+        ensureMapButtonBaseStyles();
+        scheduleMapButtonBarSetup();
+    };
+
+    ScreepsAdapter.onViewChange((view) => {
+        if (view === "top.game-world-map") {
+            scheduleMapButtonBarSetup();
+        }
+    });
 
     // aliases to angular services
     Object.defineProperty(ScreepsAdapter, "User", {

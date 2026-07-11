@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps room claim assistant
 // @namespace   https://screeps.com/
-// @version     0.1.10
+// @version     0.1.11
 // @author      James Cook
 // @description Assist with room claiming by showing claim stats on the map
 // @match       https://screeps.com/a/*
@@ -12,22 +12,24 @@
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
 // @downloadURL REPO_URL/room-claim-assistant.user.js
-// @grant       GM_getValue
-// @grant       GM_setValue
-// @grant       GM_registerMenuCommand
-// @grant       GM_unregisterMenuCommand
+// @grant       GM.getValue
+// @grant       GM.setValue
 // ==/UserScript==
 
-let ignoreSigns = GM_getValue("ignoreSigns");
+async function bindIgnoreSignsSetting() {
+    let mapContainerElem = angular.element(".map-container");
+    let worldMap = mapContainerElem.scope().WorldMap;
 
-const getCmd = () => ignoreSigns ? "Ignore signs: Enabled (Click to Disable)" : "Ignore signs: Disabled (Click to Enable)";
-GM_registerMenuCommand(getCmd(), function onCommand() {
-    GM_unregisterMenuCommand(getCmd());
-    ignoreSigns = !ignoreSigns;
-    GM_setValue("ignoreSigns", ignoreSigns);
-    GM_registerMenuCommand(getCmd(), onCommand);
-    angular.element(".world-map.ng-scope").scope().$broadcast("recalcMapSectors")
-});
+    worldMap.displayOptions.ignoreSigns = false;
+    const ignoreSigns = await GM.getValue("ignoreSigns", false)
+    worldMap.displayOptions.ignoreSigns = ignoreSigns;
+
+    worldMap.toggleIgnoreSigns = function () {
+        worldMap.displayOptions.ignoreSigns = !worldMap.displayOptions.ignoreSigns;
+        GM.setValue("ignoreSigns", worldMap.displayOptions.ignoreSigns);
+        mapContainerElem.scope().$broadcast("recalcMapSectors");
+    };
+}
 
 /**
  * @typedef RoomObjectCounts
@@ -119,7 +121,7 @@ function recalculateClaimOverlay() {
                     state = "owned";
                 } else if (roomStats.own && !userOwned && !invaderOwned) {
                     state = "prohibited"; // rooms reserved or claimed by anyone except the user or Invader
-                } else if (!ignoreSigns && roomStats.sign && !userOwned && roomStats.sign.user !== user._id) {
+                } else if (!worldMap.displayOptions.ignoreSigns && roomStats.sign && !userOwned && roomStats.sign.user !== user._id) {
                     state = "signed";
                 } else if (counts.c.length === 0) {
                     state = "unclaimable";
@@ -185,6 +187,16 @@ function bindMapStatsMonitor() {
 
 // Entry point
 ScreepsAdapter.ready(() => {
+    ScreepsAdapter.registerMapButton({
+        id: "ignore-signs",
+        tooltip: "Ignore signs",
+        content: "<i class='fa fa-map-signs'></i>",
+        ngClick: "WorldMap.toggleIgnoreSigns()",
+        ngIf: "WorldMap.displayOptions.layer == 'claim0'",
+        ngClass: "'md-primary': WorldMap.displayOptions.ignoreSigns",
+        zoomLevels: [3],
+    });
+
     DomHelper.addStyle(`
         .claim-assist { pointer-events: none; }
         .claim-assist.not-recommended { background: rgba(192, 192, 50, 0.3); }
@@ -196,9 +208,12 @@ ScreepsAdapter.ready(() => {
     `);
 
     ScreepsAdapter.onViewChange(function(view) {
-        if (view === "worldMapEntered") {
+        if (view === "top.game-world-map") {
             interceptClaim0StatsRequest();
-            ScreepsAdapter.$timeout(bindMapStatsMonitor);
+            ScreepsAdapter.$timeout(async () => {
+                await bindIgnoreSignsSetting();
+                bindMapStatsMonitor();
+            });
         }
     });
 });

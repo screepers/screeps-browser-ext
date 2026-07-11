@@ -10,7 +10,7 @@
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @downloadURL REPO_URL/alliance-overlay.user.js
-// @grant       GM_xmlhttpRequest
+// @grant       GM.xmlHttpRequest
 // @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js
 // @require     REPO_URL/screeps-browser-core.js
 // @connect     www.leagueofautomatednations.com
@@ -68,7 +68,7 @@ function ensureAllianceData(callback) {
         return;
     }
 
-    GM_xmlhttpRequest({
+    GM.xmlHttpRequest({
         method: "GET",
         url: (loanBaseUrl + "/alliances.js"),
         onload: function(response) {
@@ -149,28 +149,6 @@ function bindAllianceSetting() {
         ensureAllianceData(exposeAllianceDataForAngular);
         recalculateAllianceOverlay();
     }
-}
-
-// insert the alliance toggle into the map container layer
-function addAllianceToggle() {
-    let content = "\
-        <md:button \
-            app-stop-click-propagation app-stop-propagation='mouseout mouseover mousemove' \
-            class='md-raised btn-units alliance-toggle' ng:class=\"{'md-primary': WorldMap.displayOptions.alliances, 'solitary': WorldMap.zoom !== 3}\" \
-            ng:click='WorldMap.toggleAlliances()' \
-            tooltip-placement='bottom' tooltip='Toggle alliances'>\
-                <span>&#9733;</span>\
-        </md:button>";
-
-    DomHelper.addStyle("\
-        section.world-map .map-container .btn-units.alliance-toggle { right: 50px; font-size: 16px; padding: 4px; } \
-        section.world-map .map-container .btn-units.alliance-toggle.solitary { right: 10px; } \
-        section.world-map .map-container .layer-select { right: 90px; } \
-    ");
-
-    let mapContainerElem = angular.element(".map-container");
-    let compiledContent = DomHelper.generateCompiledElement(mapContainerElem, content);
-    $(compiledContent).appendTo(mapContainerElem);
 }
 
 // Add an "alliance" row to the room info overlay
@@ -319,11 +297,19 @@ function addAllianceColumnToLeaderboard() {
 
 // Entry point
 ScreepsAdapter.ready(() => {
+    ScreepsAdapter.registerMapButton({
+        id: "alliances",
+        tooltip: "Toggle alliances",
+        content: "<span>&#9733;</span>",
+        ngClick: "WorldMap.toggleAlliances()",
+        ngClass: "'md-primary': WorldMap.displayOptions.alliances",
+        zoomLevels: [1, 2, 3],
+    });
+
     ScreepsAdapter.onViewChange((view) => {
-        if (view === "worldMapEntered") {
+        if (view === "top.game-world-map") {
             ScreepsAdapter.$timeout(() => {
                 bindAllianceSetting();
-                addAllianceToggle();
                 addAllianceToInfoOverlay();
 
                 addSectorAllianceOverlay();

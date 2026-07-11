@@ -10,6 +10,7 @@
         "strict": true,
         "checkJs": true,
         "noEmit": true,
+        "types": ["ace", "node", "greasemonkey"]
     },
     "exclude": [
         "public/*",

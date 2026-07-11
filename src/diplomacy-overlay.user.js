@@ -271,25 +271,9 @@ function deferWorldMapDiplomacyRedraw() {
     }
 }
 
-function replaceUnitsToggle() {
-    let content = `
-        <md:button id="#diplomacy-units" app-stop-click-propagation app-stop-propagation='mouseout mouseover mousemove'
-            class='md-raised btn-units' ng-if='WorldMap.zoom == 3'
-            ng:class="{'md-primary': WorldMap.displayOptions.diplomacyUnits}"
-            ng:click='WorldMap.toggleDiplomacyUnits()' tooltip-placement='bottom' tooltip='Toggle units'>
-            <i class='fa fa-eye'></i>
-        </md:button>`;
-
-    if (document.querySelector("#diplomacy-units"))
-        return;
-
-    let mapContainerElem = angular.element(".map-container");
-    let worldMap = mapContainerElem.scope().WorldMap;
-    worldMap.displayOptions.units = false;
+function bindDiplomacyUnitsSetting() {
+    let worldMap = angular.element(".map-container").scope().WorldMap;
     worldMap.displayOptions.diplomacyUnits = localStorage.getItem("diplomacyUnits") !== "false";
-
-    let compiledContent = DomHelper.generateCompiledElement(mapContainerElem, content);
-    mapContainerElem[0].appendChild(compiledContent[0]);
 
     worldMap.toggleDiplomacyUnits = function () {
         worldMap.displayOptions.diplomacyUnits = !worldMap.displayOptions.diplomacyUnits;
@@ -299,8 +283,6 @@ function replaceUnitsToggle() {
 }
 
 function bindWorldMapStatsMonitor() {
-    replaceUnitsToggle();
-
     let scope = angular.element(".map-container").scope();
     ensureDiplomacyData(() => {
         scope.$on("mapSectorsRecalced", deferWorldMapDiplomacyRedraw);
@@ -353,13 +335,26 @@ function bindRoomStatsMonitor() {
 
 // Entry point
 ScreepsAdapter.ready(() => {
+    ScreepsAdapter.registerMapButton({
+        id: "diplomacy-units",
+        tooltip: "Toggle units",
+        content: "<i class='fa fa-eye'></i>",
+        ngClick: "WorldMap.toggleDiplomacyUnits()",
+        ngClass: "'md-primary': WorldMap.displayOptions.diplomacyUnits",
+        zoomLevels: [3],
+        replacesUnits: true,
+    });
+
     DomHelper.addStyle(`
         .room-objects { display: none; }
     `);
 
     ScreepsAdapter.onViewChange(function(view) {
-        if (view === "worldMapEntered") {
-            ScreepsAdapter.$timeout(bindWorldMapStatsMonitor);
+        if (view === "top.game-world-map") {
+            ScreepsAdapter.$timeout(() => {
+                bindDiplomacyUnitsSetting();
+                bindWorldMapStatsMonitor();
+            });
         }
     });
 
