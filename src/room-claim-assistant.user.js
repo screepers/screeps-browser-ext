@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps room claim assistant
 // @namespace   https://screeps.com/
-// @version     0.1.11
+// @version     0.2.0
 // @author      James Cook
 // @description Assist with room claiming by showing claim stats on the map
 // @match       https://screeps.com/a/*
@@ -11,6 +11,7 @@
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
+// @require     REPO_URL/screeps-alpha-map.js
 // @grant       GM.getValue
 // @grant       GM.setValue
 // ==/UserScript==
@@ -31,9 +32,7 @@ async function bindIgnoreSignsSetting() {
 }
 
 /**
- * @typedef RoomObjectCounts
- * @property {any[]} s
- * @property {any[]} c
+ * @typedef {Record<AlphaMap.ObjectType, any[]>} RoomObjectCounts
  */
 
 /** @type {Record<string, RoomObjectCounts>} */
@@ -184,6 +183,378 @@ function bindMapStatsMonitor() {
     scope.$on("mapStatsUpdated", deferRecalculation);
 }
 
+const CLAIM_LAYER = "claim-assist";
+
+/** @type {Record<string, [number, number, number, number]>} */
+const CLAIM_STATE_COLORS = {
+    "not-recommended": [192, 192, 50, 76],
+    recommended: [25, 255, 25, 51],
+    owned: [50, 50, 255, 51],
+    signed: [255, 128, 0, 89],
+    prohibited: [255, 50, 50, 51],
+    unclaimable: [128, 128, 128, 51],
+};
+
+/** @type {Record<string, unknown>} */
+const claimStateTextures = {};
+
+/**
+ * @param {AlphaMap.MapBound} bound
+ * @returns {string[]}
+ */
+function roomNamesInBound(bound) {
+    const rooms = [];
+    for (let dx = 0; dx < bound.width; dx++) {
+        for (let dy = 0; dy < bound.height; dy++) {
+            rooms.push(ScreepsAdapter.MapUtils.getRoomNameFromXY(bound.x + dx, bound.y + dy));
+        }
+    }
+    return rooms;
+}
+
+/**
+ * @param {unknown} data
+ * @returns {data is { room: string, stat: any }[]}
+ */
+function isStatsPayload(data) {
+    return Array.isArray(data) && (data.length === 0 || Object.hasOwn(data[0] ?? {}, "stat"));
+}
+
+/**
+ * @param {unknown} data
+ * @returns {data is AlphaMap.MapBound}
+ */
+function isBoundPayload(data) {
+    return !!data && typeof /** @type {AlphaMap.MapBound} */ (data).width === "number";
+}
+
+/**
+ * @param {any} roomStats
+ * @param {RoomObjectCounts | undefined} counts
+ * @param {string} userId
+ * @param {boolean} ignoreSigns
+ */
+function computeClaimState(roomStats, counts, userId, ignoreSigns) {
+    if (!counts?.s) {
+        return "not-recommended";
+    }
+
+    const userOwned = roomStats.own && roomStats.own.user === userId;
+    const invaderOwned = roomStats.own && roomStats.own.user === "2";
+
+    if (userOwned && roomStats.own.level > 0) {
+        return "owned";
+    }
+    if (roomStats.own && !userOwned && !invaderOwned) {
+        return "prohibited";
+    }
+    if (!ignoreSigns && roomStats.sign && !userOwned && roomStats.sign.user !== userId) {
+        return "signed";
+    }
+    if (counts.c.length === 0) {
+        return "unclaimable";
+    }
+    if (
+        counts.s.length >= 2 &&
+        (!roomStats.own || (userOwned && roomStats.own.level === 0) || invaderOwned)
+    ) {
+        return "recommended";
+    }
+    return "not-recommended";
+}
+
+/**
+ * @param {[number, number, number, number]} color
+ */
+function claimRoomPixels(color) {
+    const { AlphaMap } = ScreepsAdapter;
+    const pixels = new Uint8Array(AlphaMap.ROOM_SIZE * AlphaMap.ROOM_SIZE * 4);
+    for (let i = 0; i < AlphaMap.ROOM_SIZE * AlphaMap.ROOM_SIZE; i++) {
+        const offset = i * 4;
+        pixels[offset] = color[0];
+        pixels[offset + 1] = color[1];
+        pixels[offset + 2] = color[2];
+        pixels[offset + 3] = color[3] ?? 255;
+    }
+    return pixels;
+}
+
+/**
+ * @param {string} state
+ */
+function getClaimStateTexture(state) {
+    const { AlphaMap } = ScreepsAdapter;
+    const color = CLAIM_STATE_COLORS[state];
+    const pixi = AlphaMap.getPixi();
+    if (!color || !pixi) {
+        return undefined;
+    }
+
+    if (!claimStateTextures[state]) {
+        claimStateTextures[state] = pixi.Texture.fromBuffer(
+            claimRoomPixels(color),
+            AlphaMap.ROOM_SIZE,
+            AlphaMap.ROOM_SIZE,
+        );
+    }
+
+    return claimStateTextures[state];
+}
+
+/**
+ * @param {AlphaMap.Layer} layer
+ * @param {string} room
+ */
+function destroyClaimRoomSprite(layer, room) {
+    if (layer.hasRoom(room)) {
+        layer.destroyRoomSprite(room);
+    }
+}
+
+/**
+ * @param {AlphaMap.Layer} layer
+ * @param {string} room
+ * @param {string} state
+ */
+function drawClaimRoom(layer, room, state) {
+    const texture = getClaimStateTexture(state);
+    if (!texture) {
+        destroyClaimRoomSprite(layer, room);
+        return;
+    }
+
+    destroyClaimRoomSprite(layer, room);
+    const sprite = layer.createRoomSprite(room, texture);
+    layer.container.addChild(sprite);
+}
+
+function claimAssistActive() {
+    return ScreepsAdapter.AlphaMap.getDisplayLayer() === "claim0";
+}
+
+/**
+ * @param {AlphaMap.Layer | undefined} layer
+ */
+function clearClaimAssistLayerState(layer) {
+    const claimLayer = /** @type {{ _clearRoomSockets?(): void, clear?(): void } | undefined} */ (layer);
+    claimLayer?._clearRoomSockets?.();
+    claimLayer?.clear?.();
+}
+
+function syncClaimAssistLayer() {
+    const { AlphaMap } = ScreepsAdapter;
+    const enabled = claimAssistActive();
+    const layer = AlphaMap.getMap()?.getLayer(CLAIM_LAYER);
+
+    AlphaMap.toggleLayer(CLAIM_LAYER, enabled);
+    if (enabled) {
+        AlphaMap.refresh();
+    } else {
+        clearClaimAssistLayerState(layer);
+        AlphaMap.markDirty();
+    }
+}
+
+let alphaMapClaimLayerInstalled = false;
+let ignoreSignsEnabled = false;
+
+function installAlphaMapClaimLayer() {
+    if (alphaMapClaimLayerInstalled) {
+        return;
+    }
+    alphaMapClaimLayerInstalled = true;
+
+    const { AlphaMap } = ScreepsAdapter;
+
+    AlphaMap.registerDisplayOption({ name: "Claimable", value: "claim0" });
+
+    void GM.getValue("ignoreSigns", false).then((value) => {
+        ignoreSignsEnabled = value;
+    });
+
+    AlphaMap.registerPreferenceCheckbox({
+        id: "ignore-signs",
+        label: "Claimability ignores room signs",
+        getValue: () => ignoreSignsEnabled,
+        onChange: (enabled) => {
+            ignoreSignsEnabled = enabled;
+            GM.setValue("ignoreSigns", enabled);
+            AlphaMap.refresh();
+        },
+    });
+
+    AlphaMap.ready(() => {
+        const Layer = AlphaMap.getLayerClass();
+
+        class ClaimAssistLayer extends Layer {
+            static renderObservables = [
+                () => AlphaMap.getBaseComponent()?._drawMapStatsSbj.asObservable(),
+                () => AlphaMap.getMapContainer()?.bound$,
+            ];
+
+            constructor() {
+                super(CLAIM_LAYER);
+                /** @type {Map<string, { remove(): void }>} */
+                this._roomSockets = new Map();
+                /** @type {Map<string, any>} */
+                this._statsByRoom = new Map();
+                /** @type {Map<string, RoomObjectCounts>} */
+                this._countsByRoom = new Map();
+            }
+
+            _clearRoomSockets() {
+                for (const handle of this._roomSockets.values()) {
+                    handle.remove();
+                }
+                this._roomSockets.clear();
+            }
+
+            _deactivate() {
+                this._clearRoomSockets();
+                this._statsByRoom.clear();
+                this._countsByRoom.clear();
+                this.clear();
+            }
+
+            /**
+             * @param {string} room
+             */
+            _drawRoom(room) {
+                const stat = this._statsByRoom.get(room);
+                if (!room || !stat || stat.status === "out of borders") {
+                    destroyClaimRoomSprite(this, room);
+                    return;
+                }
+
+                const counts = this._countsByRoom.get(room);
+                if (!counts?.s) {
+                    return;
+                }
+
+                const state = computeClaimState(
+                    stat,
+                    counts,
+                    ScreepsAdapter.User._id,
+                    ignoreSignsEnabled,
+                );
+                drawClaimRoom(this, room, state);
+            }
+
+            /**
+             * @param {AlphaMap.MapBound | undefined} bound
+             */
+            _syncRoomSockets(bound) {
+                if (!bound || !claimAssistActive()) {
+                    this._clearRoomSockets();
+                    return;
+                }
+
+                const shard = AlphaMap.getShard();
+                if (!shard) {
+                    return;
+                }
+
+                const rooms = new Set(roomNamesInBound(bound));
+                const scope = angular.element(document.body).scope();
+
+                for (const [room, handle] of this._roomSockets) {
+                    if (!rooms.has(room)) {
+                        handle.remove();
+                        this._roomSockets.delete(room);
+                        this._countsByRoom.delete(room);
+                        destroyClaimRoomSprite(this, room);
+                    }
+                }
+
+                for (const room of rooms) {
+                    if (this._roomSockets.has(room)) {
+                        continue;
+                    }
+
+                    if (roomObjectCounts[room]) {
+                        this._countsByRoom.set(room, roomObjectCounts[room]);
+                        this._drawRoom(room);
+                    }
+
+                    const handle = ScreepsAdapter.Socket.bindEventToScope(
+                        scope,
+                        `roomMap2:${shard}/${room}`,
+                        (/** @type {RoomObjectCounts} */ counts) => {
+                            if (!claimAssistActive() || !this.renderable) {
+                                return;
+                            }
+
+                            roomObjectCounts[room] = counts;
+                            this._countsByRoom.set(room, counts);
+                            this._drawRoom(room);
+                            AlphaMap.markDirty();
+                        },
+                    );
+                    this._roomSockets.set(room, handle);
+                }
+            }
+
+            /**
+             * @param {{ room: string, stat: any }[]} stats
+             */
+            _applyStats(stats) {
+                for (const { room, stat } of stats) {
+                    if (room) {
+                        this._statsByRoom.set(room, stat);
+                    }
+                }
+            }
+
+            _redrawVisibleRooms() {
+                for (const room of this._statsByRoom.keys()) {
+                    this._drawRoom(room);
+                }
+                AlphaMap.markDirty();
+            }
+
+            /**
+             * @param {{ room: string, stat: any }[] | AlphaMap.MapBound} data
+             */
+            async render(data) {
+                if (!claimAssistActive()) {
+                    this._deactivate();
+                    return;
+                }
+
+                if (isStatsPayload(data)) {
+                    this._applyStats(data);
+                    this._redrawVisibleRooms();
+                    return;
+                }
+
+                if (isBoundPayload(data)) {
+                    this._syncRoomSockets(data);
+                    this._redrawVisibleRooms();
+                }
+            }
+        }
+
+        AlphaMap.registerCustomLayer(
+            () => new ClaimAssistLayer(),
+            claimAssistActive(),
+            { insertBefore: AlphaMap.LAYERS.users },
+        );
+
+        syncClaimAssistLayer();
+
+        const display$ = AlphaMap.getDisplayLayer$();
+        const base = AlphaMap.getBaseComponent();
+        if (display$ && base) {
+            const displaySubscription = display$.subscribe(() => {
+                syncClaimAssistLayer();
+            });
+            base._destroySbj.subscribe(() => {
+                displaySubscription.unsubscribe();
+            });
+        }
+    });
+}
+
 // Entry point
 ScreepsAdapter.ready(() => {
     ScreepsAdapter.registerMapButton({
@@ -207,6 +578,14 @@ ScreepsAdapter.ready(() => {
     `);
 
     ScreepsAdapter.onViewChange(function(view) {
+        if (view === "top.map2shard") {
+            void (async () => {
+                await ScreepsAdapter.waitFor(() => ScreepsAdapter.AlphaMap.registerDisplayOption({
+                    name: "Claimable",
+                    value: "claim0",
+                }));
+            })();
+        }
         if (view === "top.game-world-map") {
             interceptClaim0StatsRequest();
             ScreepsAdapter.$timeout(async () => {
@@ -215,4 +594,6 @@ ScreepsAdapter.ready(() => {
             });
         }
     });
+
+    installAlphaMapClaimLayer();
 });

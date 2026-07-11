@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps diplomacy overlay
 // @namespace   https://screeps.com/
-// @version     0.2.4
+// @version     0.3.0
 // @author      James Cook
 // @description Overlay diplomacy relations on the world map
 // @match       https://screeps.com/a/*
@@ -11,6 +11,7 @@
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
+// @require     REPO_URL/screeps-alpha-map.js
 // ==/UserScript==
 
 // @ts-nocheck
@@ -121,9 +122,11 @@ function getColor(type) {
         if (angular.element(".world-map").length) {
             let worldMap = angular.element(".world-map").scope().WorldMap;
             userMap = worldMap.roomUsers;
+        } else if (document.querySelector("app-world-map-base")) {
+            userMap = alphaMapRoomUsers;
         } else {
-            let room = angular.element(".room").scope().Room;
-            userMap = room.users;
+            const roomScope = angular.element(".room").scope();
+            userMap = roomScope?.Room?.users ?? {};
         }
 
         if (!userMap[type]) {
@@ -332,6 +335,261 @@ function bindRoomStatsMonitor() {
     setTimeout(deferredMinimapOverlay, 100);
 }
 
+const DIPLOMACY_LAYER = "diplomacy-units";
+
+/** @type {Record<string, { username: string }>} */
+let alphaMapRoomUsers = {};
+
+function diplomacyUnitsEnabled() {
+    return localStorage.getItem("diplomacyUnits") !== "false";
+}
+
+/**
+ * @param {AlphaMap.MapBound} bound
+ * @returns {string[]}
+ */
+function roomNamesInBound(bound) {
+    const rooms = [];
+    for (let dx = 0; dx < bound.width; dx++) {
+        for (let dy = 0; dy < bound.height; dy++) {
+            rooms.push(ScreepsAdapter.MapUtils.getRoomNameFromXY(bound.x + dx, bound.y + dy));
+        }
+    }
+    return rooms;
+}
+
+/**
+ * @param {AlphaMap.Layer} layer
+ * @param {string} room
+ */
+function destroyDiplomacyRoomSprite(layer, room) {
+    if (layer.hasRoom(room)) {
+        layer.destroyRoomSprite(room, true);
+    }
+}
+
+/**
+ * @param {AlphaMap.Layer} layer
+ * @param {string} room
+ * @param {Record<string, [number, number][]>} objects
+ */
+async function drawDiplomacyRoom(layer, room, objects) {
+    const { AlphaMap } = ScreepsAdapter;
+    const pixi = AlphaMap.getPixi();
+    if (!pixi) {
+        return;
+    }
+
+    if (!objects || !_.some(objects, (positions) => positions?.length)) {
+        destroyDiplomacyRoomSprite(layer, room);
+        return;
+    }
+
+    const pixels = AlphaMap.drawRoomObjects(objects, (itemType) => {
+        const color = getColor(itemType);
+        if (!color) {
+            ScreepsAdapter.Api.get("user/find?id=" + itemType).then((data) => {
+                if (getColor(itemType)) {
+                    return;
+                }
+                generateAndSetColor(itemType, data.user.username);
+            });
+            return zombieColor;
+        }
+        return color;
+    });
+
+    const texture = pixi.Texture.fromBuffer(pixels, AlphaMap.ROOM_SIZE, AlphaMap.ROOM_SIZE);
+    destroyDiplomacyRoomSprite(layer, room);
+    const sprite = layer.createRoomSprite(room, texture);
+    sprite.blendMode = pixi.BLEND_MODES.ADD;
+    layer.container.addChild(sprite);
+    AlphaMap.markDirty();
+}
+
+/**
+ * @param {{ room: string, user?: { _id?: string, username?: string } }[]} users
+ */
+function updateAlphaMapRoomUsers(users) {
+    for (const { user } of users) {
+        if (user?._id && user.username) {
+            alphaMapRoomUsers[user._id] = { username: user.username };
+        }
+    }
+}
+
+function isUnitsZoomAllowed() {
+    const restricted = ScreepsAdapter.AlphaMap.getBaseComponent()?._unitsRestrictedSbj?.getValue?.();
+    return restricted === false;
+}
+
+function diplomacyAlphaMapDrawAllowed() {
+    return diplomacyUnitsEnabled() && isUnitsZoomAllowed();
+}
+
+function applyAlphaMapDiplomacyUnits(enabled) {
+    const { AlphaMap } = ScreepsAdapter;
+    const base = AlphaMap.getBaseComponent();
+
+    AlphaMap.toggleLayer(DIPLOMACY_LAYER, enabled && isUnitsZoomAllowed());
+
+    if (enabled) {
+        base?.hideUnits?.();
+        const layer = AlphaMap.getMap()?.getLayer(DIPLOMACY_LAYER);
+        const bound = (() => {
+            const container = AlphaMap.getMapContainer();
+            return container?.bound ?? container?.getBound?.();
+        })();
+        if (layer?.render && bound && diplomacyAlphaMapDrawAllowed()) {
+            void layer.render(bound);
+        }
+    } else {
+        const wantUnits = base?._unitsSbj?.getValue?.() ?? true;
+        const restricted = base?._unitsRestrictedSbj?.getValue?.() ?? false;
+        if (wantUnits && !restricted) {
+            base?.showUnits?.();
+        } else {
+            base?.hideUnits?.();
+        }
+        AlphaMap.refresh();
+    }
+}
+
+let alphaMapDiplomacyLayerInstalled = false;
+
+function installAlphaMapDiplomacyLayer() {
+    if (alphaMapDiplomacyLayerInstalled) {
+        return;
+    }
+    alphaMapDiplomacyLayerInstalled = true;
+
+    const { AlphaMap } = ScreepsAdapter;
+
+    AlphaMap.registerPreferenceCheckbox({
+        id: "diplomacy-units",
+        label: "Diplomacy units overlay",
+        getValue: diplomacyUnitsEnabled,
+        onChange: (enabled) => {
+            localStorage.setItem("diplomacyUnits", enabled);
+            applyAlphaMapDiplomacyUnits(enabled);
+        },
+    });
+
+    AlphaMap.ready(() => {
+        ensureDiplomacyData(() => {
+            const users$ = AlphaMap.getBaseComponent()?._drawMapUsersSbj.asObservable();
+            users$?.subscribe((/** @type {{ user?: { _id?: string, username?: string } }[]} */ users) => {
+                updateAlphaMapRoomUsers(users);
+            });
+
+            const Layer = AlphaMap.getLayerClass();
+
+            class DiplomacyLayer extends Layer {
+                static renderObservables = [() => AlphaMap.getMapContainer()?.bound$];
+
+                constructor() {
+                    super(DIPLOMACY_LAYER);
+                    /** @type {Map<string, { remove(): void }>} */
+                    this._roomSockets = new Map();
+                    /** @type {AlphaMap.MapBound | undefined} */
+                    this._lastBound = undefined;
+                }
+
+                _clearRoomSockets() {
+                    for (const handle of this._roomSockets.values()) {
+                        handle.remove();
+                    }
+                    this._roomSockets.clear();
+                }
+
+                /**
+                 * @param {AlphaMap.MapBound} bound
+                 */
+                async render(bound) {
+                    this._lastBound = bound;
+                    if (!diplomacyAlphaMapDrawAllowed()) {
+                        this._clearRoomSockets();
+                        this.clear();
+                        return;
+                    }
+
+                    if (!bound) {
+                        return;
+                    }
+
+                    const shard = AlphaMap.getShard();
+                    if (!shard) {
+                        return;
+                    }
+
+                    const rooms = new Set(roomNamesInBound(bound));
+                    const scope = angular.element(document.body).scope();
+
+                    for (const [room, handle] of this._roomSockets) {
+                        if (!rooms.has(room)) {
+                            handle.remove();
+                            this._roomSockets.delete(room);
+                            destroyDiplomacyRoomSprite(this, room);
+                        }
+                    }
+
+                    for (const room of rooms) {
+                        if (this._roomSockets.has(room)) {
+                            continue;
+                        }
+
+                        const handle = ScreepsAdapter.Socket.bindEventToScope(
+                            scope,
+                            `roomMap2:${shard}/${room}`,
+                            (/** @type {Record<string, [number, number][]>} */ objects) => {
+                                if (!diplomacyAlphaMapDrawAllowed() || !this.renderable) {
+                                    return;
+                                }
+                                void drawDiplomacyRoom(this, room, objects);
+                            },
+                        );
+                        this._roomSockets.set(room, handle);
+                    }
+                }
+            }
+
+            AlphaMap.registerCustomLayer(
+                () => new DiplomacyLayer(),
+                diplomacyUnitsEnabled(),
+                { insertBefore: AlphaMap.LAYERS.users },
+            );
+
+            const mapContainer = AlphaMap.getMapContainer();
+            const base = AlphaMap.getBaseComponent();
+            if (mapContainer?.scale$ && base) {
+                let zoomRedrawScheduled = false;
+                const scaleSubscription = mapContainer.scale$.subscribe(() => {
+                    if (!diplomacyUnitsEnabled() || zoomRedrawScheduled) {
+                        return;
+                    }
+                    zoomRedrawScheduled = true;
+                    ScreepsAdapter.$timeout(() => {
+                        zoomRedrawScheduled = false;
+                        const layer = AlphaMap.getMap()?.getLayer(DIPLOMACY_LAYER);
+                        const container = AlphaMap.getMapContainer();
+                        const bound = layer?._lastBound ?? container?.bound ?? container?.getBound?.();
+                        if (layer?.render && bound) {
+                            AlphaMap.toggleLayer(
+                                DIPLOMACY_LAYER,
+                                diplomacyAlphaMapDrawAllowed(),
+                            );
+                            void layer.render(bound);
+                        }
+                    });
+                });
+                base._destroySbj.subscribe(() => scaleSubscription.unsubscribe());
+            }
+
+            applyAlphaMapDiplomacyUnits(diplomacyUnitsEnabled());
+        });
+    });
+}
+
 // Entry point
 ScreepsAdapter.ready(() => {
     ScreepsAdapter.registerMapButton({
@@ -358,4 +616,5 @@ ScreepsAdapter.ready(() => {
     });
 
     ScreepsAdapter.onRoomChange(bindRoomStatsMonitor);
+    installAlphaMapDiplomacyLayer();
 });
