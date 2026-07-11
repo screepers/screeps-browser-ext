@@ -110,3 +110,10 @@ declare var DomHelper: {
     addStyle(style: string): void;
     generateCompiledElement(parent: any, content: string): any;
 };
+
+type ExposedWindowKey = "ScreepsAdapter" | "DomHelper";
+
+interface Window {
+    ScreepsAdapter: typeof ScreepsAdapter;
+    DomHelper: typeof DomHelper;
+}

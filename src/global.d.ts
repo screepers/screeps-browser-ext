@@ -1,3 +1,6 @@
+/** Tampermonkey page window reference when the userscript runs in a sandbox. */
+declare const unsafeWindow: Window & typeof globalThis;
+
 declare var _: import('lodash').LoDashStatic;
 declare var angular: import('angular').angular.IAngularStatic;
 // ace is also there, but we're seeing the latest version, which I'm not sure is what's actually used (the markers API is different)
@@ -12,7 +15,6 @@ declare function randomColor(opts: {
     seed: string;
     format: "hslArray";
 }): HSLColor;
-
 // XXX: not sure what's the story there
 declare var GM_xmlhttpRequest = GM.xmlHttpRequest;
 

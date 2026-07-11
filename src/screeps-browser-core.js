@@ -20,10 +20,23 @@
         }, 0);
     }
 
-    if (window.ScreepsAdapter && !window.ScreepsAdapter.VERSION) {
-        // This is unversioned adapter, just override
-    } else if (window.ScreepsAdapter && compareVersion(window.ScreepsAdapter.VERSION, VERSION) >= 0) {
-        // Already loaded a more recent version
+    const pageWindow = (typeof unsafeWindow !== "undefined") ? unsafeWindow : window;
+
+    /**
+     * @template {ExposedWindowKey} T
+     * @param {T} key
+     * @param {unknown} object
+     */
+    function expose(key, object) {
+        window[key] = /** @type {(typeof window)[T]} */ (object);
+        if (typeof unsafeWindow !== "undefined") {
+            unsafeWindow[key] = /** @type {(typeof window)[T]} */ (object);
+        }
+    }
+
+    if (pageWindow.ScreepsAdapter?.VERSION && compareVersion(pageWindow.ScreepsAdapter.VERSION, VERSION) >= 0) {
+        expose("ScreepsAdapter", pageWindow.ScreepsAdapter);
+        expose("DomHelper", pageWindow.DomHelper);
         return;
     }
 
@@ -79,10 +92,21 @@
         let $compile = parent.injector().get("$compile");
         return $compile(content)($scope);
     }
-    window.DomHelper = DomHelper;
+    expose("DomHelper", DomHelper);
 
     const ScreepsAdapter = {};
     ScreepsAdapter.VERSION = VERSION;
+    ScreepsAdapter.loadId = Math.random().toString(36).slice(2, 8);
+
+    /**
+     * @param {string[]} message
+     */
+    // eslint-disable-next-line no-unused-vars
+    function log(...message) {
+        // console.log(`[ScreepsAdapter:${ScreepsAdapter.loadId}]`, ...message);
+    }
+
+    log(`v${VERSION} loaded`);
 
     /**
      * Polls every 50 milliseconds for a given condition
@@ -386,6 +410,5 @@
         });
     });
 
-    // @ts-expect-error
-    window.ScreepsAdapter = ScreepsAdapter;
+    expose("ScreepsAdapter", ScreepsAdapter);
 })();
