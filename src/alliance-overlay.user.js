@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps alliance overlay
 // @namespace   https://screeps.com/
-// @version     0.3.1
+// @version     0.3.2
 // @author      James Cook
 // @description Overlay alliance relations on the world map
 // @match       https://screeps.com/a/*
@@ -649,14 +649,51 @@ function ensureAllianceData(callback) {
 }
 
 /**
+ * @returns {any | null}
+ */
+function getClassicWorldMap() {
+    for (const selector of [".map-container", ".world-map"]) {
+        const elem = angular.element(selector);
+        if (!elem.length) {
+            continue;
+        }
+        const worldMap = elem.scope()?.WorldMap;
+        if (worldMap) {
+            return worldMap;
+        }
+    }
+    return null;
+}
+
+/**
+ * @returns {{ scope: any, worldMap: any, mapContainerElem: JQuery } | null}
+ */
+function getClassicWorldMapContext() {
+    const mapContainerElem = angular.element(".map-container");
+    if (!mapContainerElem.length) {
+        return null;
+    }
+
+    const scope = mapContainerElem.scope();
+    const worldMap = scope?.WorldMap;
+    if (!scope || !worldMap) {
+        return null;
+    }
+
+    return { scope, worldMap, mapContainerElem };
+}
+
+/**
  * Stuff references to the alliance data in the world map object. Not clear whether this is actually doing useful things.
  */
 function exposeAllianceDataForAngular() {
     let $timeout = angular.element("body").injector().get("$timeout");
 
     $timeout(() => {
-        let worldMapElem = angular.element(".world-map");
-        let worldMap = worldMapElem.scope().WorldMap;
+        const worldMap = getClassicWorldMap();
+        if (!worldMap) {
+            return;
+        }
 
         worldMap.allianceData = allianceData;
         worldMap.userAlliance = userAlliance;
@@ -675,8 +712,10 @@ function exposeAllianceDataForAngular() {
  */
 function bindAllianceSetting() {
     let alliancesEnabled = ScreepsAdapter.getSetting("alliancesEnabled", true);
-    let worldMapElem = angular.element(".world-map");
-    let worldMap = worldMapElem.scope().WorldMap;
+    const worldMap = getClassicWorldMap();
+    if (!worldMap) {
+        return;
+    }
 
     worldMap.displayOptions.alliances = alliancesEnabled;
 
@@ -720,9 +759,12 @@ function addAllianceToInfoOverlay() {
 }
 
 function recalculateAllianceOverlay() {
-    let mapContainerElem = angular.element(".map-container");
-    let scope = mapContainerElem.scope();
-    let worldMap = scope.WorldMap;
+    const ctx = getClassicWorldMapContext();
+    if (!ctx) {
+        return;
+    }
+
+    const { worldMap, mapContainerElem } = ctx;
     if (!worldMap.displayOptions.alliances || !worldMap.allianceData) return;
 
     /**
@@ -798,8 +840,12 @@ function addSectorAllianceOverlay() {
         .alliance-logo-3 { width: 50px; height: 50px; background-size: 50px 50px; opacity: 0.8 }\
     ");
 
-    let mapContainerElem = angular.element(".map-container");
-    let scope = mapContainerElem.scope();
+    const ctx = getClassicWorldMapContext();
+    if (!ctx) {
+        return;
+    }
+
+    const { scope } = ctx;
 
     let deferRecalculation = function () {
         // remove alliance logos during redraws
