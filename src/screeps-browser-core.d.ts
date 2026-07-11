@@ -1,3 +1,5 @@
+/// <reference path="./screeps-alpha-map.d.ts" />
+
 interface ShowDialogOptions {
     /** a plaintext title; if title and icon are omitted, an exclamation point icon is shown */
      title?: string;
@@ -123,6 +125,7 @@ declare var ScreepsAdapter: {
     User: {
         _id: string;
     };
+    AlphaMap: AlphaMap.AlphaMapAdapter;
 };
 
 declare var DomHelper: {

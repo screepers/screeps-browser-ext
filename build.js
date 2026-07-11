@@ -202,7 +202,7 @@ function generateIndex(userscriptFiles) {
     </ul>
 
     <div class="footer">
-        <p>These userscripts require <a href="${repoUrl}/screeps-browser-core.js">screeps-browser-core.js</a> to function.</p>
+        <p>These userscripts require <a href="${repoUrl}/screeps-browser-core.js">screeps-browser-core.js</a> to function. Alpha map scripts also require <a href="${repoUrl}/screeps-alpha-map.js">screeps-alpha-map.js</a>.</p>
     </div>
 </body>
 </html>`;
@@ -212,21 +212,25 @@ function generateIndex(userscriptFiles) {
     console.log(`  ✓ index.html`);
 }
 
-// Copy screeps-browser-core.js to public/
-function copyCoreFile() {
-    const coreFile = "screeps-browser-core.js";
-    const inputPath = join(SRC_DIR, coreFile);
-    const outputPath = join(PUBLIC_DIR, coreFile);
+// Copy library files to public/
+const LIBRARY_FILES = ["screeps-browser-core.js", "screeps-alpha-map.js"];
 
-    try {
-        const content = readFileSync(inputPath, "utf-8");
-        writeFileSync(outputPath, content, "utf-8");
-        console.log(`  ✓ ${coreFile}`);
-        return true;
-    } catch (error) {
-        console.error(`  ✗ Error copying ${coreFile}:`, error);
-        return false;
+function copyLibraryFiles() {
+    let copied = 0;
+    for (const coreFile of LIBRARY_FILES) {
+        const inputPath = join(SRC_DIR, coreFile);
+        const outputPath = join(PUBLIC_DIR, coreFile);
+
+        try {
+            const content = readFileSync(inputPath, "utf-8");
+            writeFileSync(outputPath, content, "utf-8");
+            console.log(`  ✓ ${coreFile}`);
+            copied++;
+        } catch (error) {
+            console.error(`  ✗ Error copying ${coreFile}:`, error);
+        }
     }
+    return copied;
 }
 
 // Build all files
@@ -251,16 +255,14 @@ function buildAll() {
         }
     }
 
-    // Copy screeps-browser-core.js
-    console.log("\nCopying core file...");
-    if (copyCoreFile()) {
-        successCount++;
-    }
+    // Copy library files
+    console.log("\nCopying library files...");
+    const libraryCount = copyLibraryFiles();
 
     // Generate index.html
     generateIndex(userscriptFiles);
 
-    console.log(`\nBuild complete! (${successCount}/${userscriptFiles.length + 1} files)`);
+    console.log(`\nBuild complete! (${successCount}/${userscriptFiles.length} userscripts, ${libraryCount}/${LIBRARY_FILES.length} libraries)`);
 }
 
 // Watch mode
@@ -275,11 +277,10 @@ function watchMode() {
             console.log(`\n[${new Date().toLocaleTimeString()}] File changed: ${relative(__dirname, filename)}`);
             if (filename.endsWith(".user.js")) {
                 processUserscript(filename);
-                // Regenerate index.html
                 const userscriptFiles = getUserscripts();
                 generateIndex(userscriptFiles);
-            } else if (basename(filename) === "screeps-browser-core.js") {
-                copyCoreFile();
+            } else if (LIBRARY_FILES.includes(basename(filename))) {
+                copyLibraryFiles();
             }
         }
     });

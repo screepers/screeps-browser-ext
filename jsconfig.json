@@ -10,8 +10,13 @@
         "strict": true,
         "checkJs": true,
         "noEmit": true,
+        "skipLibCheck": true,
+        "maxNodeModuleJsDepth": 0,
         "types": ["ace", "node", "greasemonkey"]
     },
+    "include": [
+        "src/**/*"
+    ],
     "exclude": [
         "public/*",
         "**/node_modules/*"

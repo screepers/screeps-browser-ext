@@ -4,6 +4,7 @@ declare const unsafeWindow: Window & typeof globalThis;
 declare var _: import('lodash').LoDashStatic;
 declare var angular: import('angular').angular.IAngularStatic;
 declare var PIXI: any;
+declare var GM: typeof import('greasemonkey').GM;
 // ace is also there, but we're seeing the latest version, which I'm not sure is what's actually used (the markers API is different)
 
 type RGBColor = [r: number, g: number, b: number];
