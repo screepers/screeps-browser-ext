@@ -59,9 +59,9 @@ declare var ScreepsAdapter: {
 
     /**
      * Execute a callback when the selected object changes in a room.
-     * @param {({ object: any })} callback
+     * @param {({ object: unknown })} callback
      */
-    onSelectionChange(callback: (object: any) => void): void;
+    onSelectionChange(callback: (object: unknown) => void): void;
 
     /**
      * Display a popup dialog

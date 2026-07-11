@@ -44,6 +44,6 @@ ScreepsAdapter.ready(async () => {
     console.warn("Store Resources Sorter: Loaded");
 
     ScreepsAdapter.onSelectionChange(async (obj) => {
-        sortResources(obj?.object);
+        sortResources(/** @type {{ object: { store: Record<string, number> } }} */ (obj)?.object);
     });
 });
