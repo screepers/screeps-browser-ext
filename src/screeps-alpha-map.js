@@ -195,21 +195,20 @@
     // --- Settings ---
 
     /**
-     * Get an alpha map setting from localStorage.
+     * Get an alpha map setting.
      * @param {string} setting
      */
     AlphaMap.getSetting = function (setting) {
-        const item = window.localStorage.getItem(`screeps.alpha-map.${setting}`);
-        return item !== null ? JSON.parse(item) : null;
+        return ScreepsAdapter.getSetting(`screeps.alpha-map.${setting}`, null, { json: true });
     };
 
     /**
-     * Save an alpha map setting to localStorage.
+     * Save an alpha map setting.
      * @param {string} setting
      * @param {any} value
      */
     AlphaMap.setSetting = function (setting, value) {
-        window.localStorage.setItem(`screeps.alpha-map.${setting}`, JSON.stringify(value));
+        ScreepsAdapter.setSetting(`screeps.alpha-map.${setting}`, value, { json: true });
     };
 
     // --- Zoom ---

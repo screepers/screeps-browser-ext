@@ -212,7 +212,7 @@ function parseInt(str, radix = 10) {
                         appendConsoleMessage(`Invalid size argument!`, true);
                         return;
                     }
-                    localStorage.setItem(HISTORY_SIZE_KEY, size.toString());
+                    ScreepsAdapter.setSetting(HISTORY_SIZE_KEY, size);
                     appendConsoleMessage(`Set history size to ${size}`);
                     saveHistory(loadHistory()); // Roundabout way of enforcing the new size
                     return;
@@ -326,7 +326,7 @@ function parseInt(str, radix = 10) {
     ];
 
     function loadHistory() {
-        const history = /** @type {string[]} */ (JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) ?? "[]"));
+        const history = /** @type {string[]} */ (ScreepsAdapter.getSetting(HISTORY_STORAGE_KEY, [], { json: true }));
         console.warn(`History loaded, ${history.length} entries found`);
         return history;
     }
@@ -337,7 +337,7 @@ function parseInt(str, radix = 10) {
      */
     function saveHistory(history) {
         console.warn(`Saving history`, history);
-        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+        ScreepsAdapter.setSetting(HISTORY_STORAGE_KEY, history, { json: true });
     }
 
     function clearHistory() {
@@ -350,8 +350,8 @@ function parseInt(str, radix = 10) {
 
     const DEFAULT_HISTORY_SIZE = 100.
     function getHistorySize() {
-        const size = localStorage.getItem(HISTORY_SIZE_KEY);
-        if (size === null) return DEFAULT_HISTORY_SIZE;
+        const size = ScreepsAdapter.getSetting(HISTORY_SIZE_KEY);
+        if (size === null || size === undefined) return DEFAULT_HISTORY_SIZE;
         return parseInt(size) ?? DEFAULT_HISTORY_SIZE;
     }
 
@@ -388,8 +388,8 @@ function parseInt(str, radix = 10) {
 
     const DEFAULT_ROOM_HISTORY_SIZE = 100;
     function getRoomHistorySize() {
-        const size = localStorage.getItem(NAVIGATION_SIZE_KEY);
-        if (size === null) return DEFAULT_ROOM_HISTORY_SIZE;
+        const size = ScreepsAdapter.getSetting(NAVIGATION_SIZE_KEY);
+        if (size === null || size === undefined) return DEFAULT_ROOM_HISTORY_SIZE;
         return parseInt(size) ?? DEFAULT_ROOM_HISTORY_SIZE;
     }
 

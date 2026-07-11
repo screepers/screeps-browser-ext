@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const VERSION = "0.4.0";
+    const VERSION = "0.5.0";
 
     /**
      * @param {string} a
@@ -775,6 +775,45 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
             scheduleMapButtonBarSetup();
         }
     });
+
+    /**
+     * Build a localStorage key, prefixing for PTR or season servers.
+     * @param {string} name
+     */
+    function buildSettingKey(name) {
+        const isPtr = angular.element(document.body).scope()?.ptr;
+        const isSeason = /\/season/.test(window.location.pathname);
+        return `${isPtr ? "ptr:" : isSeason ? "season:" : ""}${name}`;
+    }
+
+    /**
+     * Read a persisted setting. Booleans stored as "true"/"false" are coerced back.
+     * Pass `{ json: true }` to parse/store structured values.
+     * @param {string} name
+     * @param {any} [defaultValue]
+     * @param {{ json?: boolean }} [options]
+     */
+    ScreepsAdapter.getSetting = function(name, defaultValue, options) {
+        const raw = localStorage.getItem(buildSettingKey(name));
+        if (raw === null) return defaultValue;
+        if (options?.json) {
+            return JSON.parse(raw);
+        }
+        if (raw === "true") return true;
+        if (raw === "false") return false;
+        return raw;
+    };
+
+    /**
+     * Persist a setting. Pass `{ json: true }` to JSON-serialize objects and arrays.
+     * @param {string} name
+     * @param {any} value
+     * @param {{ json?: boolean }} [options]
+     */
+    ScreepsAdapter.setSetting = function(name, value, options) {
+        const stored = options?.json ? JSON.stringify(value) : String(value);
+        return localStorage.setItem(buildSettingKey(name), stored);
+    };
 
     // aliases to angular services
     Object.defineProperty(ScreepsAdapter, "User", {

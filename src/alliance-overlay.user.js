@@ -324,10 +324,10 @@ function exposeAllianceDataForAngular() {
 }
 
 /**
- * Bind the WorldMap alliance display option to the localStorage value
+ * Bind the WorldMap alliance display option to the persisted setting
  */
 function bindAllianceSetting() {
-    let alliancesEnabled = localStorage.getItem("alliancesEnabled") !== "false";
+    let alliancesEnabled = ScreepsAdapter.getSetting("alliancesEnabled", true);
     let worldMapElem = angular.element(".world-map");
     let worldMap = worldMapElem.scope().WorldMap;
 
@@ -504,14 +504,14 @@ function addAllianceColumnToLeaderboard() {
 const ALLIANCE_LAYER = "alliances";
 
 function alliancesEnabled() {
-    return localStorage.getItem("alliancesEnabled") !== "false";
+    return ScreepsAdapter.getSetting("alliancesEnabled", true);
 }
 
 /**
  * @param {boolean} enabled
  */
 function setAlliancesEnabled(enabled) {
-    localStorage.setItem("alliancesEnabled", String(enabled));
+    ScreepsAdapter.setSetting("alliancesEnabled", enabled);
 }
 
 let alphaMapTooltipAllianceInstalled = false;

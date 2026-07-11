@@ -89,6 +89,17 @@ declare var ScreepsAdapter: {
 
     registerMapButton(options: MapButtonOptions): void;
 
+    /**
+     * Read a persisted setting. Booleans stored as "true"/"false" are coerced back.
+     * Pass `{ json: true }` to parse structured values.
+     */
+    getSetting<T = string>(name: string, defaultValue?: T, options?: { json?: boolean }): T;
+
+    /**
+     * Persist a setting. Pass `{ json: true }` to JSON-serialize objects and arrays.
+     */
+    setSetting(name: string, value: unknown, options?: { json?: boolean }): void;
+
     $location: {
         get $$absUrl(): string;
         url(url: string): void;

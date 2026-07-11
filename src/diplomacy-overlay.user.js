@@ -275,11 +275,11 @@ function deferWorldMapDiplomacyRedraw() {
 
 function bindDiplomacyUnitsSetting() {
     let worldMap = angular.element(".map-container").scope().WorldMap;
-    worldMap.displayOptions.diplomacyUnits = localStorage.getItem("diplomacyUnits") !== "false";
+    worldMap.displayOptions.diplomacyUnits = ScreepsAdapter.getSetting("diplomacyUnits", true);
 
     worldMap.toggleDiplomacyUnits = function () {
         worldMap.displayOptions.diplomacyUnits = !worldMap.displayOptions.diplomacyUnits;
-        localStorage.setItem("diplomacyUnits", worldMap.displayOptions.diplomacyUnits);
+        ScreepsAdapter.setSetting("diplomacyUnits", worldMap.displayOptions.diplomacyUnits);
         deferWorldMapDiplomacyRedraw();
     };
 }
@@ -341,7 +341,7 @@ const DIPLOMACY_LAYER = "diplomacy-units";
 let alphaMapRoomUsers = {};
 
 function diplomacyUnitsEnabled() {
-    return localStorage.getItem("diplomacyUnits") !== "false";
+    return ScreepsAdapter.getSetting("diplomacyUnits", true);
 }
 
 /**
@@ -470,7 +470,7 @@ function installAlphaMapDiplomacyLayer() {
         label: "Diplomacy units overlay",
         getValue: diplomacyUnitsEnabled,
         onChange: (enabled) => {
-            localStorage.setItem("diplomacyUnits", enabled);
+            ScreepsAdapter.setSetting("diplomacyUnits", enabled);
             applyAlphaMapDiplomacyUnits(enabled);
         },
     });
