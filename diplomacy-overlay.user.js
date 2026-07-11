@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps diplomacy overlay
 // @namespace   https://screeps.com/
-// @version     0.3.0
+// @version     0.3.1
 // @author      James Cook
 // @description Overlay diplomacy relations on the world map
 // @match       https://screeps.com/a/*
@@ -10,10 +10,10 @@
 // @match       http://*.localhost/(*)/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017489
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1783796017489
-// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1783796017489
-// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1783796017489
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969190
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1783796969190
+// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1783796969190
+// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1783796969190
 // ==/UserScript==
 
 
@@ -99,7 +99,7 @@ function hslToRGB(a, b, c) {
 function generateAndSetColor(userid, userName) {
     let color;
     let diplomacyScore;
-    if (diplomacyData.users && diplomacyData.users[userName]) {
+    if (diplomacyData?.users?.[userName]) {
         diplomacyScore = diplomacyData.users[userName].state;
     }
 
@@ -177,6 +177,7 @@ function ensureDiplomacyData(callback) {
     ScreepsAdapter.Connection.getMemoryByPath(ScreepsAdapter.User._id, "diplomacy").then((data) => {
         if (!data) {
             console.log("No diplomacy data available");
+            diplomacyData = { users: {} };
         } else {
             diplomacyData = data;
             colorMap[ScreepsAdapter.User._id] = userColor;

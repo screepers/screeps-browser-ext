@@ -11,9 +11,9 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost/(*)/*
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017488
-// @updateURL   https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1783796017488
-// @downloadURL https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1783796017488
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969188
+// @updateURL   https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1783796969188
+// @downloadURL https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1783796969188
 // ==/UserScript==
 
 

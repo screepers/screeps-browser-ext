@@ -11,9 +11,9 @@
 // @description Better sorting for the resource list in the inspector
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017491
-// @updateURL   https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1783796017491
-// @downloadURL https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1783796017491
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969193
+// @updateURL   https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1783796969193
+// @downloadURL https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1783796969193
 // ==/UserScript==
 
 

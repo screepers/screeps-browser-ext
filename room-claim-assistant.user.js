@@ -10,12 +10,12 @@
 // @match       http://*.localhost/(*)/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017491
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1783796017491
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969192
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1783796969192
 // @grant       GM.getValue
 // @grant       GM.setValue
-// @updateURL   https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1783796017491
-// @downloadURL https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1783796017491
+// @updateURL   https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1783796969192
+// @downloadURL https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1783796969192
 // ==/UserScript==
 
 

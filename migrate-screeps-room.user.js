@@ -11,8 +11,8 @@
 // @run-at      context-menu
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @grant       none
-// @updateURL   https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js?v=1783796017491
-// @downloadURL https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js?v=1783796017491
+// @updateURL   https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js?v=1783796969192
+// @downloadURL https://screepers.github.io/screeps-browser-ext/migrate-screeps-room.user.js?v=1783796969192
 // ==/UserScript==
 
 
