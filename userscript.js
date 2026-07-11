@@ -165,6 +165,13 @@ export class Userscript {
             /**
          * @param {string} name
          * @param {string} value
+         */
+            add(name, value) {
+                self.#headers.add(name, value);
+            },
+            /**
+         * @param {string} name
+         * @param {string} value
          * @param {number} [index]
          */
             set(name, value, index) {

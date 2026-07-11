@@ -78,17 +78,24 @@ function processUserscript(file) {
         const script = new Userscript(content);
 
         const cacheBust = Date.now();
+        const userscriptUrl = `${repoUrl}/${basename(file)}`;
 
         /** @param {string} base */
         const processUrl = (base) => {
+            base = base.replace(/USERSCRIPT_URL/g, userscriptUrl);
             base = base.replace(/REPO_URL\//g, `${repoUrl}/`);
             base += `${base.indexOf("?") === -1 ? "?" : "&"}v=${cacheBust}`;
             return base;
         }
 
-        let dl = script.headers.get("downloadURL");
-        if (dl) {
-            script.headers.set("downloadURL", processUrl(dl));
+        for (const header of ["updateURL", "downloadURL"]) {
+            const existing = script.headers.get(header);
+            const processed = processUrl(existing ?? "USERSCRIPT_URL");
+            if (existing === null) {
+                script.headers.add(header, processed);
+            } else {
+                script.headers.set(header, processed);
+            }
         }
         let requires = script.headers.getAll("require") ?? [];
         for (let [require, index] of requires) {

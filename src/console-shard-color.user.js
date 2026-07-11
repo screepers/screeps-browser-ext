@@ -9,7 +9,6 @@
 // @match       http://*.localhost/(*)/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadURL REPO_URL/console-shard-color.js
 // ==/UserScript==
 
 (function() {

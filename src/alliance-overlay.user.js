@@ -9,7 +9,6 @@
 // @match       http://*.localhost/(*)/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @downloadURL REPO_URL/alliance-overlay.user.js
 // @grant       GM.xmlHttpRequest
 // @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js
 // @require     REPO_URL/screeps-browser-core.js

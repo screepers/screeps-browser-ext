@@ -12,7 +12,6 @@
 // @match       http://*.localhost/(*)/*
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
-// @downloadURL REPO_URL/gui-extender.js
 // ==/UserScript==
 
 // Original from https://github.com/screepers/screeps-snippets/blob/master/src/client-abuse/JavaScript/util.inject.Birthday.js

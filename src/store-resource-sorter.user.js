@@ -13,7 +13,6 @@
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
-// @downloadURL REPO_URL/store-resource-sorter.js
 // ==/UserScript==
 
 
