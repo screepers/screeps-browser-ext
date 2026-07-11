@@ -271,7 +271,7 @@ function watchMode() {
                 // Regenerate index.html
                 const userscriptFiles = getUserscripts();
                 generateIndex(userscriptFiles);
-            } else if (filename === "screeps-browser-core.js") {
+            } else if (basename(filename) === "screeps-browser-core.js") {
                 copyCoreFile();
             }
         }
