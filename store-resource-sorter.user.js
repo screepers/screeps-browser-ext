@@ -11,8 +11,9 @@
 // @description Better sorting for the resource list in the inspector
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783211638150
-// @downloadURL https://screepers.github.io/screeps-browser-ext/store-resource-sorter.js?v=1783211638150
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017491
+// @updateURL   https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1783796017491
+// @downloadURL https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1783796017491
 // ==/UserScript==
 
 
@@ -45,6 +46,6 @@ ScreepsAdapter.ready(async () => {
     console.warn("Store Resources Sorter: Loaded");
 
     ScreepsAdapter.onSelectionChange(async (obj) => {
-        sortResources(obj?.object);
+        sortResources(/** @type {{ object: { store: Record<string, number> } }} */ (obj)?.object);
     });
 });

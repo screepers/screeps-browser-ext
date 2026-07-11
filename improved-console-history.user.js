@@ -11,8 +11,9 @@
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783211638149
-// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.js?v=1783211638149
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017490
+// @updateURL   https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1783796017490
+// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1783796017490
 // ==/UserScript==
 
 
@@ -64,8 +65,8 @@ async function waitFor(condition, pollInterval = 50, timeoutAfter) {
 
     while (true) {
         // Check for timeout, bail if too much time passed
-        if(typeof(timeoutAfter) === 'number' && Date.now() > startTime + timeoutAfter) {
-            throw 'Condition not met before timeout';
+        if(typeof(timeoutAfter) === "number" && Date.now() > startTime + timeoutAfter) {
+            throw "Condition not met before timeout";
         }
 
         // Check for conditon immediately
@@ -171,7 +172,7 @@ function parseInt(str, radix = 10) {
                 const msg = `Screeps improved console history: version ${SICH_VERSION}\n` +
                 `Available commands:\n` +
                 CLI_CMDS.map(c => {
-                    if ('alias' in c) {
+                    if ("alias" in c) {
                         return fmtCmd([c.name, `An alias for ${COMMAND_SIGIL}${c.alias}`]);
                     }
                     if (!c.desc) return;
@@ -215,7 +216,7 @@ function parseInt(str, radix = 10) {
                         appendConsoleMessage(`Invalid size argument!`, true);
                         return;
                     }
-                    localStorage.setItem(HISTORY_SIZE_KEY, size.toString());
+                    ScreepsAdapter.setSetting(HISTORY_SIZE_KEY, size);
                     appendConsoleMessage(`Set history size to ${size}`);
                     saveHistory(loadHistory()); // Roundabout way of enforcing the new size
                     return;
@@ -254,7 +255,7 @@ function parseInt(str, radix = 10) {
 
                 // @navigate offX, offY
                 if (args.length === 2) {
-                    const [offX, offY] = [Number.parseInt(args[0]), Number.parseInt(args[1])];
+                    const [offX, offY] = [Number.parseInt(args[0], 10), Number.parseInt(args[1], 10)];
                     if (isNaN(offX) || isNaN(offY)) {
                         appendConsoleMessage(`Invalid offset ${args}; both must be integers!`, true);
                         return;
@@ -329,7 +330,7 @@ function parseInt(str, radix = 10) {
     ];
 
     function loadHistory() {
-        const history = /** @type {string[]} */ (JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) ?? "[]"));
+        const history = /** @type {string[]} */ (ScreepsAdapter.getSetting(HISTORY_STORAGE_KEY, [], { json: true }));
         console.warn(`History loaded, ${history.length} entries found`);
         return history;
     }
@@ -340,7 +341,7 @@ function parseInt(str, radix = 10) {
      */
     function saveHistory(history) {
         console.warn(`Saving history`, history);
-        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+        ScreepsAdapter.setSetting(HISTORY_STORAGE_KEY, history, { json: true });
     }
 
     function clearHistory() {
@@ -353,13 +354,13 @@ function parseInt(str, radix = 10) {
 
     const DEFAULT_HISTORY_SIZE = 100.
     function getHistorySize() {
-        const size = localStorage.getItem(HISTORY_SIZE_KEY);
-        if (size === null) return DEFAULT_HISTORY_SIZE;
+        const size = ScreepsAdapter.getSetting(HISTORY_SIZE_KEY);
+        if (size === null || size === undefined) return DEFAULT_HISTORY_SIZE;
         return parseInt(size) ?? DEFAULT_HISTORY_SIZE;
     }
 
     function getCurrentRoom() {
-        return angular.element('.room.ng-scope').scope().Room;
+        return angular.element(".room.ng-scope").scope().Room;
     }
 
     function selectedObject() {
@@ -391,8 +392,8 @@ function parseInt(str, radix = 10) {
 
     const DEFAULT_ROOM_HISTORY_SIZE = 100;
     function getRoomHistorySize() {
-        const size = localStorage.getItem(NAVIGATION_SIZE_KEY);
-        if (size === null) return DEFAULT_ROOM_HISTORY_SIZE;
+        const size = ScreepsAdapter.getSetting(NAVIGATION_SIZE_KEY);
+        if (size === null || size === undefined) return DEFAULT_ROOM_HISTORY_SIZE;
         return parseInt(size) ?? DEFAULT_ROOM_HISTORY_SIZE;
     }
 
@@ -404,7 +405,7 @@ function parseInt(str, radix = 10) {
         currentRoom.server = window.location.host;
 
         const roomHistory = loadRoomHistory();
-        const dup = roomHistory.findIndex(h => h.server === currentRoom.server && h.room == currentRoom.room && h.shard === currentRoom.shard);
+        const dup = roomHistory.findIndex(h => h.server === currentRoom.server && h.room === currentRoom.room && h.shard === currentRoom.shard);
         if (dup !== -1) {
             roomHistory.splice(dup, 1);
         }
@@ -445,12 +446,12 @@ function parseInt(str, radix = 10) {
      */
     function addMarker(start, end) {
         console.warn(`addMarker: ${start}-${end}`);
-        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element('.ace_editor')[1]))
+        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element(".ace_editor")[1]))
         aceEditor.getSession().addMarker(new Range(1, start, 1, end), "subst-error-highlight", "text", true);
     }
 
     function clearMarkers() {
-        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element('.ace_editor')[1]))
+        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element(".ace_editor")[1]))
         const session = aceEditor.getSession();
         const markers = session.getMarkers(true);
         for (const markerId in markers) {
@@ -473,7 +474,7 @@ function parseInt(str, radix = 10) {
                 // @ts-expect-error
                 let replacement = CLI_VARS[v]();
                 line = line.replaceAll(regex, replacement);
-            } catch (e) {
+            } catch {
                 for (const match of [...line.matchAll(regex)]) {
                     addMarker(match.index, match.index + match[0].length);
                     hasError = true
@@ -494,13 +495,13 @@ function parseInt(str, radix = 10) {
     function getCommand(name, args) {
         const cmd = CLI_CMDS.find(c => c.name === name);
         if (!cmd) return null;
-        if ('alias' in cmd) {
+        if ("alias" in cmd) {
             if (Array.isArray(cmd.alias)) {
                 args.unshift(cmd.alias[1]);
                 return getCommand(cmd.alias[0], []);
-            } else {
-                return getCommand(cmd.alias, []);
-            }
+            } 
+            return getCommand(cmd.alias, []);
+            
         }
         return cmd;
     }
@@ -567,7 +568,7 @@ function parseInt(str, radix = 10) {
     /** @type {NodeJS.Timeout} */
     let timer;
     const setupConsoleHistory = () => {
-        const consoleEl = document.querySelector('.console.ng-scope'); // "Top.Game.Console"
+        const consoleEl = document.querySelector(".console.ng-scope"); // "Top.Game.Console"
         if (!consoleEl) {
             timer = setTimeout(setupConsoleHistory, 500);
             return
@@ -582,14 +583,12 @@ function parseInt(str, radix = 10) {
         gameConsole.extendedHistory = true;
 
 
-        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element('.ace_editor')[1]))
+        const aceEditor = ace.edit(/** @type {HTMLElement} */ (angular.element(".ace_editor")[1]))
 
         // Snippets have a tendency to activate in the middle of other things
         // @ts-expect-error
         aceEditor.$enableSnippets = false;
 
-        console.warn(`Overriding Console methods`);
-        const _sendCommand = gameConsole.sendCommand;
         gameConsole.sendCommand = function() {
             let line = aceEditor.getValue();
             executeCommand(line);
@@ -630,7 +629,7 @@ function parseInt(str, radix = 10) {
                 }
 
                 const entry = history[historyIdx];
-                console.warn(`history entry #${historyIdx}: ${entry ?? '<typing>'}`);
+                console.warn(`history entry #${historyIdx}: ${entry ?? "<typing>"}`);
                 aceEditor.setValue(entry, 1); // set and place cursor at the end
                 return;
             } else if (e.keyCode === 13) {
@@ -652,7 +651,7 @@ function parseInt(str, radix = 10) {
             z-index: 20;
         }`);
         ScreepsAdapter.onViewChange((triggerName) => {
-            if (triggerName !== 'roomEntered') {
+            if (triggerName !== "roomEntered") {
                 return;
             }
             setupConsoleHistory();

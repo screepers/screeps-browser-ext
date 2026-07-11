@@ -11,8 +11,9 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost/(*)/*
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783211638147
-// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.js?v=1783211638147
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017488
+// @updateURL   https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1783796017488
+// @downloadURL https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1783796017488
 // ==/UserScript==
 
 
@@ -37,12 +38,12 @@ function formatDate(d) {
 };
 
 function showBdayInternal() {
-    let gameEl = angular.element($('section.game'));
-    let roomEl = angular.element($('section.room'));
-    let $rootScope = gameEl.injector().get('$rootScope');
-    let $compile = gameEl.injector().get('$compile');
-    let target = $('.object-properties .aside-block-content')[0];
-    let elem = $('<div class="ng-binding ng-scope"><label>BirthDate: </label>' + formatDate(new Date(parseInt(roomEl.scope().Room.selectedObject._id.substr(0,8), 16)*1000)) + '</div>');
+    let gameEl = angular.element($("section.game"));
+    let roomEl = angular.element($("section.room"));
+    let $rootScope = gameEl.injector().get("$rootScope");
+    let $compile = gameEl.injector().get("$compile");
+    let target = $(".object-properties .aside-block-content")[0];
+    let elem = $('<div class="ng-binding ng-scope"><label>BirthDate: </label>' + formatDate(new Date(parseInt(roomEl.scope().Room.selectedObject._id.substr(0,8), 16)*1000)) + "</div>");
     $compile(elem)($rootScope);
     if(target.children.length > 1) {
         elem.insertBefore(target.children[2]);
@@ -55,7 +56,7 @@ function showBdayInternal() {
 ScreepsAdapter.ready(() => {
     ScreepsAdapter.onViewChange((view) => {
         ScreepsAdapter.$timeout(() => {
-            if (view == 'view' && $('.object-properties .aside-block-content')[0]) {
+            if (view === "view" && $(".object-properties .aside-block-content")[0]) {
                 showBdayInternal();
             }
         }, 100);

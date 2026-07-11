@@ -13,9 +13,11 @@
 // @match       http://*.localhost/(*)/*
 // @run-at      document-idle
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783211638149
-// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.js?v=1783211638149
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796017490
+// @updateURL   https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1783796017490
+// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1783796017490
 // ==/UserScript==
+
 
 
 // @ts-nocheck
@@ -45,123 +47,125 @@
  */
 ScreepsAdapter.ready(() => {
 
-  /**
+    /**
    * @param {(args: ...any)=> void} callback
    * @param {number} delay
    * @returns
    */
-  function debounce(callback, delay) {
-    let timeout;
-    return (...args) => {
-      let context = this;
-      clearTimeout(timeout);
-      timeout = setTimeout(() => { callback.apply(context, args); }, delay);
-    };
-  }
-
-  /** Unlock CPU on PTR */
-  function unlockPtrCpu() {
-    const scope = angular.element(document.body).scope();
-    const Me = scope && scope.Me();
-    const Api = ScreepsAdapter.Api;
-    if (!scope || !Me || !Api) {
-      setTimeout(unlockPtrCpu, 50);
-      return;
+    function debounce(callback, delay) {
+        let timeout;
+        return (...args) => {
+            let context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                callback.apply(context, args); 
+            }, delay);
+        };
     }
 
-    // Only run on PTR
-    if (!scope.ptr) {
-      return;
-    }
-
-    // Only run if CPU has not been unlocked on PTR but is on MMO
-    // (sum of shard CPU limits will be higher than total CPU limit)
-    const shardLimits = Me.cpuShard;
-    const cpu = Math.max(Me.cpu, _.sum(shardLimits));
-    if (Me.cpu > 20 || Me.cpu === cpu) {
-      return;
-    }
-
-    // Unlock CPU
-    Api.post('user/activate-ptr').then((result) => {
-      console.info('[screeps-gui-extender] unlocked CPU on PTR:', result);
-
-      setTimeout(updatePtrShardCpuLimits, 3000);
-
-      ScreepsAdapter.showDialog({
-        title: 'Unlocked CPU',
-        innerHTML: `<p>CPU unlocked for 7 days on PTR</p>`,
-      });
-    }).catch((error) => {
-      console.error('[screeps-gui-extender] error activating CPU on PTR:', error);
-
-      ScreepsAdapter.showDialog({
-        title: 'Error Unlocking CPU on PTR',
-        innerHTML: `<p>Error: ${error}</p>`,
-      });
-    });
-  }
-  unlockPtrCpu();
-
-  /** Update shard CPU limits on PTR */
-  function updatePtrShardCpuLimits() {
-    const scope = angular.element(document.body).scope();
-    const Me = scope && scope.Me();
-    const Api = ScreepsAdapter.Api;
-    if (!scope || !Me || !Api) {
-      setTimeout(updatePtrShardCpuLimits, 51);
-      return;
-    }
-
-    // Only run on PTR
-    if (!scope.ptr) {
-      return;
-    }
-
-    // Skip if CPU has not been unlocked (will be called again after unlock)
-    if (Me.cpu <= 20) {
-      return;
-    }
-
-    // Determine target shard CPU limits
-    const shardLimits = Me.cpuShard;
-    const activeShardNames = _(shardLimits).map((shardCpu, shardName) => (shardCpu > 0 ? shardName : null)).compact().value();
-    const numShards = activeShardNames.length;
-    const totalCpu = Math.max(Me.cpu, _.sum(shardLimits));
-    const shard3CpuLimit = 60;
-    const shard3Cpu = totalCpu > shard3CpuLimit * numShards ?
-      shard3CpuLimit :
-      Math.floor(totalCpu / numShards);
-    const subtotalCpu = activeShardNames.includes('shard3') ?
-      totalCpu - shard3Cpu :
-      totalCpu;
-    const avgShardCpu = subtotalCpu / numShards;
-    const otherShardsCpu = Math.floor(avgShardCpu);
-    const firstShardCpu = subtotalCpu - ((numShards - (activeShardNames.includes('shard3') ? 2 : 1)) * otherShardsCpu);
-    const firstShardName = activeShardNames[0];
-    const newShardLimits = _(shardLimits)
-      .map((shardCpu, shardName) => {
-        if (!shardCpu) {
-          return [shardName, shardCpu];
+    /** Unlock CPU on PTR */
+    function unlockPtrCpu() {
+        const scope = angular.element(document.body).scope();
+        const Me = scope && scope.Me();
+        const Api = ScreepsAdapter.Api;
+        if (!scope || !Me || !Api) {
+            setTimeout(unlockPtrCpu, 50);
+            return;
         }
-        if (shardName === 'shard3') {
-          return [shardName, shard3Cpu];
+
+        // Only run on PTR
+        if (!scope.ptr) {
+            return;
         }
-        return [shardName, shardName === firstShardName ? firstShardCpu : otherShardsCpu];
-      })
-      .zipObject()
-      .value();
-    if (JSON.stringify(shardLimits) === JSON.stringify(newShardLimits)) {
-      console.debug('[screeps-gui-extender] shard CPU limits already match target limits; current:', shardLimits, '; target:', newShardLimits);
-      return;
+
+        // Only run if CPU has not been unlocked on PTR but is on MMO
+        // (sum of shard CPU limits will be higher than total CPU limit)
+        const shardLimits = Me.cpuShard;
+        const cpu = Math.max(Me.cpu, _.sum(shardLimits));
+        if (Me.cpu > 20 || Me.cpu === cpu) {
+            return;
+        }
+
+        // Unlock CPU
+        Api.post("user/activate-ptr").then((result) => {
+            console.info("[screeps-gui-extender] unlocked CPU on PTR:", result);
+
+            setTimeout(updatePtrShardCpuLimits, 3000);
+
+            ScreepsAdapter.showDialog({
+                title: "Unlocked CPU",
+                innerHTML: `<p>CPU unlocked for 7 days on PTR</p>`,
+            });
+        }).catch((error) => {
+            console.error("[screeps-gui-extender] error activating CPU on PTR:", error);
+
+            ScreepsAdapter.showDialog({
+                title: "Error Unlocking CPU on PTR",
+                innerHTML: `<p>Error: ${error}</p>`,
+            });
+        });
     }
+    unlockPtrCpu();
 
-    // Update CPU limits via private API endpoint
-    Api.post('user/cpu-shards', { cpu: newShardLimits }).then((result) => {
-      console.info('[screeps-gui-extender] updated CPU shard limits:', result, '\ncurrent shard CPU limits:', shardLimits, '\ntarget shard CPU limits:', newShardLimits);
+    /** Update shard CPU limits on PTR */
+    function updatePtrShardCpuLimits() {
+        const scope = angular.element(document.body).scope();
+        const Me = scope && scope.Me();
+        const Api = ScreepsAdapter.Api;
+        if (!scope || !Me || !Api) {
+            setTimeout(updatePtrShardCpuLimits, 51);
+            return;
+        }
 
-      // Show dialog
-      $('body').append(`<style type="text/css">
+        // Only run on PTR
+        if (!scope.ptr) {
+            return;
+        }
+
+        // Skip if CPU has not been unlocked (will be called again after unlock)
+        if (Me.cpu <= 20) {
+            return;
+        }
+
+        // Determine target shard CPU limits
+        const shardLimits = Me.cpuShard;
+        const activeShardNames = _(shardLimits).map((shardCpu, shardName) => (shardCpu > 0 ? shardName : null)).compact().value();
+        const numShards = activeShardNames.length;
+        const totalCpu = Math.max(Me.cpu, _.sum(shardLimits));
+        const shard3CpuLimit = 60;
+        const shard3Cpu = totalCpu > shard3CpuLimit * numShards ?
+            shard3CpuLimit :
+            Math.floor(totalCpu / numShards);
+        const subtotalCpu = activeShardNames.includes("shard3") ?
+            totalCpu - shard3Cpu :
+            totalCpu;
+        const avgShardCpu = subtotalCpu / numShards;
+        const otherShardsCpu = Math.floor(avgShardCpu);
+        const firstShardCpu = subtotalCpu - ((numShards - (activeShardNames.includes("shard3") ? 2 : 1)) * otherShardsCpu);
+        const firstShardName = activeShardNames[0];
+        const newShardLimits = _(shardLimits)
+            .map((shardCpu, shardName) => {
+                if (!shardCpu) {
+                    return [shardName, shardCpu];
+                }
+                if (shardName === "shard3") {
+                    return [shardName, shard3Cpu];
+                }
+                return [shardName, shardName === firstShardName ? firstShardCpu : otherShardsCpu];
+            })
+            .zipObject()
+            .value();
+        if (JSON.stringify(shardLimits) === JSON.stringify(newShardLimits)) {
+            console.debug("[screeps-gui-extender] shard CPU limits already match target limits; current:", shardLimits, "; target:", newShardLimits);
+            return;
+        }
+
+        // Update CPU limits via private API endpoint
+        Api.post("user/cpu-shards", { cpu: newShardLimits }).then((result) => {
+            console.info("[screeps-gui-extender] updated CPU shard limits:", result, "\ncurrent shard CPU limits:", shardLimits, "\ntarget shard CPU limits:", newShardLimits);
+
+            // Show dialog
+            $("body").append(`<style type="text/css">
         app-dlg-alert table.update-ptr-cpu {
           margin: 0 auto;
         }
@@ -175,94 +179,94 @@ ScreepsAdapter.ready(() => {
           text-align: right;
         }
       </style>`);
-      ScreepsAdapter.showDialog({
-        title: 'PTR Shard CPU Limits Updated',
-        innerHTML: `
+            ScreepsAdapter.showDialog({
+                title: "PTR Shard CPU Limits Updated",
+                innerHTML: `
           <table class="update-ptr-cpu">
             <thead><tr><th scope="col">Shard</th><th scope="col">Previous<br />Limit</th><th scope="col">New<br />Limit</th></tr></thead>
             <tbody>
-              ${_(shardLimits).keys().map((shardName) => `<tr><th scope="row">${shardName}</td><td>${shardLimits[shardName]}</td><td>${newShardLimits[shardName]}</td></tr>`).join('\n')}
+              ${_(shardLimits).keys().map((shardName) => `<tr><th scope="row">${shardName}</td><td>${shardLimits[shardName]}</td><td>${newShardLimits[shardName]}</td></tr>`).join("\n")}
             </tbody>
           </table>
         `,
-      });
-    }).catch((error) => {
-      console.error('[screeps-gui-extender] error updating shard CPU limits:', error);
-      ScreepsAdapter.showDialog({
-        title: 'Error Updating PTR Shard CPU Limits',
-        innerHTML: `<p>Error: ${error}</p>`,
-      });
-    });
-  }
-  // Disabled in public version since not all users will want this behavior
-  //updatePtrShardCpuLimits();
+            });
+        }).catch((error) => {
+            console.error("[screeps-gui-extender] error updating shard CPU limits:", error);
+            ScreepsAdapter.showDialog({
+                title: "Error Updating PTR Shard CPU Limits",
+                innerHTML: `<p>Error: ${error}</p>`,
+            });
+        });
+    }
+    // Disabled in public version since not all users will want this behavior
+    //updatePtrShardCpuLimits();
 
-  function waitForNavTab() {
-    return ScreepsAdapter.waitFor(() => document.querySelectorAll('.editor-panel .nav-tabs li[name]').length !== 0);
-  }
+    function waitForNavTab() {
+        return ScreepsAdapter.waitFor(() => document.querySelectorAll(".editor-panel .nav-tabs li[name]").length !== 0);
+    }
 
-  /**
+    /**
    * Activate a specific bottom nav tab
    * @param {'script' | 'console' | 'memory'} tabName
    */
-  async function selectNavTab(tabName) {
-    await waitForNavTab();
+    async function selectNavTab(tabName) {
+        await waitForNavTab();
 
-    const panelEl = document.querySelector('.editor-panel');
-    const scope = angular.element(panelEl).scope();
+        const panelEl = document.querySelector(".editor-panel");
+        const scope = angular.element(panelEl).scope();
 
-    scope.$evalAsync(() => {
-      scope.EditorPanel.activeTab = tabName;
+        scope.$evalAsync(() => {
+            scope.EditorPanel.activeTab = tabName;
+        });
+    }
+
+    // Track which tab was clicked last
+    async function listenToNavTabChanges() {
+        await waitForNavTab();
+        const panel = document.querySelector(".editor-panel");
+        const scope = angular.element(panel).scope();
+
+        scope.$watch(
+            () => scope.EditorPanel.activeTab,
+            (newVal, oldVal) => {
+                if (!newVal || newVal === oldVal) return;
+                ScreepsAdapter.setSetting("game.editor.tab", newVal);
+            }
+        );
+    }
+    listenToNavTabChanges();
+
+    // Reopen last selected tab in room view
+    ScreepsAdapter.onViewChange((triggerName) => {
+        if (triggerName === "top.game-room") {
+            const lastTab = ScreepsAdapter.getSetting("game.editor.tab", "console");
+            selectNavTab(lastTab);
+            return;
+        }
     });
-  }
 
-  // Track which tab was clicked last
-  async function listenToNavTabChanges() {
-    await waitForNavTab();
-    const panel = document.querySelector('.editor-panel');
-    const scope = angular.element(panel).scope();
-
-    scope.$watch(
-      () => scope.EditorPanel.activeTab,
-      (newVal, oldVal) => {
-        if (!newVal || newVal === oldVal) return;
-        setSetting('game.editor.tab', newVal);
-      }
-    );
-  }
-  listenToNavTabChanges();
-
-  // Reopen last selected tab in room view
-  ScreepsAdapter.onViewChange((triggerName) => {
-    if (triggerName === 'top.game-room') {
-      const lastTab = getSetting('game.editor.tab', 'console');
-      selectNavTab(lastTab);
-      return;
-    }
-  });
-
-  // Add a link to the navbar to toggle between MMO and PTR
-  function addMmoPtrToggleLink() {
+    // Add a link to the navbar to toggle between MMO and PTR
+    function addMmoPtrToggleLink() {
     // Only do this when using the web client for MMO or PTR
-    const path = String(window.location.pathname);
-    if (window.location.hostname !== 'screeps.com' || (!path.startsWith('/a/') && !path.startsWith('/ptr/'))) {
-      return;
-    }
+        const path = String(window.location.pathname);
+        if (window.location.hostname !== "screeps.com" || (!path.startsWith("/a/") && !path.startsWith("/ptr/"))) {
+            return;
+        }
 
-    // Skip if button has already been added
-    if (angular.element('.mmo-ptr-toggle').length) {
-      return;
-    }
+        // Skip if button has already been added
+        if (angular.element(".mmo-ptr-toggle").length) {
+            return;
+        }
 
-    // Wait for relevant views/scopes to be ready
-    let targetElem = angular.element('.top-content .navbar .navbar-header .navbar-brand')[0];
-    if (!targetElem) {
-      setTimeout(addMmoPtrToggleLink, 50);
-      return;
-    }
+        // Wait for relevant views/scopes to be ready
+        let targetElem = angular.element(".top-content .navbar .navbar-header .navbar-brand")[0];
+        if (!targetElem) {
+            setTimeout(addMmoPtrToggleLink, 50);
+            return;
+        }
 
-    // Add styles
-    $('body').append(`<style type='text/css'>
+        // Add styles
+        $("body").append(`<style type='text/css'>
       /* Style the MMO/PTR toggle link similarly to the credits/inventory links */
       header .mmo-ptr-toggle a:hover {
         color: inherit;
@@ -273,18 +277,18 @@ ScreepsAdapter.ready(() => {
       }
     </style>`);
 
-    // Determine link locations
-    let isMMO = path.startsWith('/a/');
-    let href = (
-      (isMMO ? path.replace('/a/', '/ptr/') : path.replace('/ptr/', '/a/'))
+        // Determine link locations
+        let isMMO = path.startsWith("/a/");
+        let href = (
+            (isMMO ? path.replace("/a/", "/ptr/") : path.replace("/ptr/", "/a/"))
         + window.location.hash
         + window.location.search
-    );
-    let label = isMMO ? 'MMO' : 'PTR';
-    let targetLabel = isMMO ? 'PTR' : 'MMO';
+        );
+        let label = isMMO ? "MMO" : "PTR";
+        let targetLabel = isMMO ? "PTR" : "MMO";
 
-    // Insert toggle link
-    const newElem = angular.element(`
+        // Insert toggle link
+        const newElem = angular.element(`
       <div class="mmo-ptr-toggle --flex" title="Go to ${targetLabel}" style="float: left; line-height: 40px; margin: 0 8px 0 0;">
         <div class="--color-text-80">
           <a class="--flex" href="${href}" style="text-decoration: none;">
@@ -293,49 +297,32 @@ ScreepsAdapter.ready(() => {
         </div>
       </div>
     `);
-    newElem.insertAfter(targetElem);
+        newElem.insertAfter(targetElem);
 
-    // Update toggle link's hash when client hash changes
-    ScreepsAdapter.onHashChange((hash) => {
-      const hrefAttr = angular.element('.mmo-ptr-toggle a')[0].attributes.href;
-      hrefAttr.value = hrefAttr.value.split('#')[0] + window.location.hash + window.location.search;
-    });
-  }
-  addMmoPtrToggleLink();
-
-  function getSetting(name, defaultValue) {
-    const isPtr = angular.element('body').scope().ptr;
-    const isSeason = /\/season/.test(window.location.pathname);
-    const key = `${isPtr ? 'ptr:' : isSeason ? 'season:' : ''}${name}`;
-    const value = localStorage.getItem(key) ?? defaultValue;
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  }
-
-  function setSetting(name, value) {
-    const isPtr = angular.element('body').scope().ptr;
-    const isSeason = /\/season/.test(window.location.pathname);
-    const key = `${isPtr ? 'ptr:' : isSeason ? 'season:' : ''}${name}`;
-    return localStorage.setItem(key, value);
-  }
-
-  // Customize editor panel and add docking side toggle button
-  function customizeEditorPanel() {
-    const aceEditor = angular.element('.console-input .ace_editor');
-    if (!aceEditor.length) {
-      setTimeout(customizeEditorPanel, 50);
-      return;
+        // Update toggle link's hash when client hash changes
+        ScreepsAdapter.onHashChange((_hash) => {
+            const hrefAttr = angular.element(".mmo-ptr-toggle a")[0].attributes.href;
+            hrefAttr.value = hrefAttr.value.split("#")[0] + window.location.hash + window.location.search;
+        });
     }
+    addMmoPtrToggleLink();
 
-    if (angular.element('.btn-panel-dock').length) {
-      return
-    }
+    // Customize editor panel and add docking side toggle button
+    function customizeEditorPanel() {
+        const aceEditor = angular.element(".console-input .ace_editor");
+        if (!aceEditor.length) {
+            setTimeout(customizeEditorPanel, 50);
+            return;
+        }
 
-    let fontSize = parseInt(getSetting('console.fontSize', 12));
+        if (angular.element(".btn-panel-dock").length) {
+            return
+        }
 
-    // Add styling
-    $('body').append(`<style type='text/css'>
+        let fontSize = parseInt(ScreepsAdapter.getSetting("console.fontSize", 12), 10);
+
+        // Add styling
+        $("body").append(`<style type='text/css'>
       section.console.ng-scope .console-messages-list .console-message {
         line-height: 1.5;
       }
@@ -376,10 +363,10 @@ ScreepsAdapter.ready(() => {
       }
     </style>`);
 
-    // Add docking side toggle button and behavior
-    const dockLeftTitle = "Dock to Left";
-    const dockBottomTitle = "Dock to Bottom";
-    const dockToggleButton = angular.element(`<div class="btn-panel-dock" style="font-size: 0;" title="${dockBottomTitle}">
+        // Add docking side toggle button and behavior
+        const dockLeftTitle = "Dock to Left";
+        const dockBottomTitle = "Dock to Bottom";
+        const dockToggleButton = angular.element(`<div class="btn-panel-dock" style="font-size: 0;" title="${dockBottomTitle}">
       <svg
         width="16" height="16"
         style="stroke: #999999; stroke-width: 2; fill: transparent;"
@@ -389,139 +376,140 @@ ScreepsAdapter.ready(() => {
         <path d="M 1 1 H 6 V 15 H 1 Z" fill="#999999"></path>
       </svg>
     </div>`);
-    dockToggleButton.insertAfter(angular.element('.btn-panel-popup.ng-scope'));
+        dockToggleButton.insertAfter(angular.element(".btn-panel-popup.ng-scope"));
 
-    const editorPanel = angular.element('.editor-panel');
-    const editorPanelElem = editorPanel[0];
-    const roomElem = angular.element('section.room')[0];
-    const resizeHandle = $('.resize-handle');
-    const resizeVertHandler = $._data($('.resize-handle')[0], 'events').mousedown[0].handler;
+        const editorPanel = angular.element(".editor-panel");
+        const editorPanelElem = editorPanel[0];
+        const roomElem = angular.element("section.room")[0];
+        const resizeVertHandler = $._data($(".resize-handle")[0], "events").mousedown[0].handler;
 
-    /**
+        /**
      *
      * @param {"bottom" | "left"} dockingSide
      */
-    const updatePanelDocking = (dockingSide) => {
-      // section.room element is recreated when switching between history and room views;
-      // need to ensure reference to it is up-to-date
-      const editorPanel = angular.element('.editor-panel');
-      const editorPanelElem = editorPanel[0];
-      const roomElem = angular.element('section.room')[0];
+        const updatePanelDocking = (dockingSide) => {
+            // section.room element is recreated when switching between history and room views;
+            // need to ensure reference to it is up-to-date
+            const editorPanel = angular.element(".editor-panel");
+            const editorPanelElem = editorPanel[0];
+            const roomElem = angular.element("section.room")[0];
 
-      setSetting('game.editor.dockSide', dockingSide);
+            ScreepsAdapter.setSetting("game.editor.dockSide", dockingSide);
 
-      if (dockingSide === "left") {
-        // Dock panel to left
-        const editorWidth = getSetting('game.editor.width', Math.floor(window.screen.width * 0.4).toString());
-        editorPanelElem.style.width = `${editorWidth}px`;
-        editorPanelElem.style.height = '100%';
-        roomElem.style.left = `${parseInt(editorWidth) + 5}px`;
-        roomElem.style.bottom = '0';
+            if (dockingSide === "left") {
+                // Dock panel to left
+                const editorWidth = ScreepsAdapter.getSetting("game.editor.width", Math.floor(window.screen.width * 0.4).toString());
+                editorPanelElem.style.width = `${editorWidth}px`;
+                editorPanelElem.style.height = "100%";
+                roomElem.style.left = `${parseInt(editorWidth, 10) + 5}px`;
+                roomElem.style.bottom = "0";
 
-        // Adjust positioning of left-side controls (world map, history, etc)
-        angular.element('.left-controls')[0].style['margin-left'] = '11px';
+                // Adjust positioning of left-side controls (world map, history, etc)
+                angular.element(".left-controls")[0].style["margin-left"] = "11px";
 
-        // Show horizontal resize handle
-        angular.element('.resize-handle-horizontal').show();
+                // Show horizontal resize handle
+                angular.element(".resize-handle-horizontal").show();
 
-        // Disable vertical resize
-        $('.resize-handle').off('mousedown');
-        angular.element('.resize-handle')[0].style.cursor = 'default';
+                // Disable vertical resize
+                $(".resize-handle").off("mousedown");
+                angular.element(".resize-handle")[0].style.cursor = "default";
 
-        // Update button style and tooltip
-        dockToggleButton.addClass('dock-bottom');
-        dockToggleButton.attr('title', dockBottomTitle);
-      } else if (dockingSide === "bottom") {
-        // Dock panel to bottom
-        const editorHeight = getSetting('game.editor.height');
-        editorPanelElem.style.width = '100%';
-        editorPanelElem.style.height = `${editorHeight}px`;
-        roomElem.style.left = '0';
-        roomElem.style.bottom = `${editorHeight}px`;
+                // Update button style and tooltip
+                dockToggleButton.addClass("dock-bottom");
+                dockToggleButton.attr("title", dockBottomTitle);
+            } else if (dockingSide === "bottom") {
+                // Dock panel to bottom
+                const editorHeight = ScreepsAdapter.getSetting("game.editor.height");
+                editorPanelElem.style.width = "100%";
+                editorPanelElem.style.height = `${editorHeight}px`;
+                roomElem.style.left = "0";
+                roomElem.style.bottom = `${editorHeight}px`;
 
-        // Reset positioning of left-side controls (world map, history, etc)
-        angular.element('.left-controls')[0].style['margin-left'] = null;
+                // Reset positioning of left-side controls (world map, history, etc)
+                angular.element(".left-controls")[0].style["margin-left"] = null;
 
-        // Hide horizontal resize handle
-        angular.element('.resize-handle-horizontal').hide();
+                // Hide horizontal resize handle
+                angular.element(".resize-handle-horizontal").hide();
 
-        // Enable vertical resize
-        $('.resize-handle').on('mousedown', resizeVertHandler);
-        angular.element('.resize-handle')[0].style.cursor = null;
+                // Enable vertical resize
+                $(".resize-handle").on("mousedown", resizeVertHandler);
+                angular.element(".resize-handle")[0].style.cursor = null;
 
-        // Update button style and tooltip
-        dockToggleButton.removeClass('dock-bottom');
-        dockToggleButton.attr('title', dockLeftTitle);
-      } else {
-        console.log("invalid docking side:", dockingSide)
-      }
+                // Update button style and tooltip
+                dockToggleButton.removeClass("dock-bottom");
+                dockToggleButton.attr("title", dockLeftTitle);
+            } else {
+                console.log("invalid docking side:", dockingSide)
+            }
 
-      angular.element('section.room').scope().$broadcast('resize', { sameSize: !0 });
+            angular.element("section.room").scope().$broadcast("resize", { sameSize: !0 });
 
-      // Update minimized state
-      setSetting('game.editor.hidden', false);
-      $('.btn-panel-toggle').removeClass('minimized');
-    };
-    dockToggleButton.on('click', (e) => {
-      const cycleSide = {
-        "left": "bottom",
-        "bottom": "left",
-      };
-      updatePanelDocking(cycleSide[getSetting('game.editor.dockSide', 'bottom')]);
-    });
+            // Update minimized state
+            ScreepsAdapter.setSetting("game.editor.hidden", false);
+            $(".btn-panel-toggle").removeClass("minimized");
+        };
+        dockToggleButton.on("click", (_e) => {
+            const cycleSide = {
+                "left": "bottom",
+                "bottom": "left",
+            };
+            updatePanelDocking(cycleSide[ScreepsAdapter.getSetting("game.editor.dockSide", "bottom")]);
+        });
 
-    // Update popup/minimize buttons to force dock to bottom before triggering
-    const fixPanelBtnCompatibility = (selector) => {
-      const panelButton = $(selector);
-      const clickHandler = $._data(panelButton[0], 'events').click[0].handler;
-      panelButton.off('click');
-      panelButton.on('click', (e) => {
-        updatePanelDocking(false);
-      });
-      panelButton.on('click', clickHandler);
-    };
-    fixPanelBtnCompatibility('.btn-panel-popup');
-    fixPanelBtnCompatibility('.btn-panel-toggle');
+        // Update popup/minimize buttons to force dock to bottom before triggering
+        const fixPanelBtnCompatibility = (selector) => {
+            const panelButton = $(selector);
+            const clickHandler = $._data(panelButton[0], "events").click[0].handler;
+            panelButton.off("click");
+            panelButton.on("click", (_e) => {
+                updatePanelDocking(false);
+            });
+            panelButton.on("click", clickHandler);
+        };
+        fixPanelBtnCompatibility(".btn-panel-popup");
+        fixPanelBtnCompatibility(".btn-panel-toggle");
 
-    const resizeHandleElem = angular.element(`<div class="resize-handle-horizontal"></div>`);
-    resizeHandleElem.insertBefore(angular.element('.resize-handle')[0]);
-    resizeHandleElem.on('mousedown', (e) => {
-      e.stopImmediatePropagation();
-      e.preventDefault();
+        const resizeHandleElem = angular.element(`<div class="resize-handle-horizontal"></div>`);
+        resizeHandleElem.insertBefore(angular.element(".resize-handle")[0]);
+        resizeHandleElem.on("mousedown", (_e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
 
-      const resizeHorizHandler = (e) => {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        const editorWidth = e.clientX;
-        setSetting('game.editor.width', editorWidth);
-        editorPanelElem.style.width = `${editorWidth}px`;
-        roomElem.style.left = `${editorWidth + 5}px`;
-        angular.element('section.room').scope().$broadcast('resize', { sameSize: !0 });
-      };
-      const endResizeHorizHandler = (e) => {
-        editorPanel.off('mousemove.resizeHorizontal');
-        resizeHandleElem.off('mousemove.resizeHorizontal');
-        angular.element('section.room').off('mousemove.resizeHorizontal');
-        resizeHandleElem.off('mouseup.resizeHorizontal');
-      };
+            const resizeHorizHandler = (_e) => {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                const editorWidth = e.clientX;
+                ScreepsAdapter.setSetting("game.editor.width", editorWidth);
+                editorPanelElem.style.width = `${editorWidth}px`;
+                roomElem.style.left = `${editorWidth + 5}px`;
+                angular.element("section.room").scope().$broadcast("resize", { sameSize: !0 });
+            };
+            const endResizeHorizHandler = (_e) => {
+                editorPanel.off("mousemove.resizeHorizontal");
+                resizeHandleElem.off("mousemove.resizeHorizontal");
+                angular.element("section.room").off("mousemove.resizeHorizontal");
+                resizeHandleElem.off("mouseup.resizeHorizontal");
+            };
 
-      editorPanel.on('mousemove.resizeHorizontal', resizeHorizHandler);
-      resizeHandleElem.on('mousemove.resizeHorizontal', resizeHorizHandler);
-      angular.element('section.room').on('mousemove.resizeHorizontal', resizeHorizHandler);
-      resizeHandleElem.on('mouseup.resizeHorizontal', endResizeHorizHandler);
-    });
+            editorPanel.on("mousemove.resizeHorizontal", resizeHorizHandler);
+            resizeHandleElem.on("mousemove.resizeHorizontal", resizeHorizHandler);
+            angular.element("section.room").on("mousemove.resizeHorizontal", resizeHorizHandler);
+            resizeHandleElem.on("mouseup.resizeHorizontal", endResizeHorizHandler);
+        });
 
-    // Initialize editor panel docking state
-    if (!getSetting('game.editor.hidden', false)) {
-      setTimeout(() => { updatePanelDocking(getSetting('game.editor.dockSide', 'bottom')); }, 0);
-    } else {
-      angular.element('.resize-handle-horizontal').hide();
-    }
+        // Initialize editor panel docking state
+        if (!ScreepsAdapter.getSetting("game.editor.hidden", false)) {
+            setTimeout(() => {
+                updatePanelDocking(ScreepsAdapter.getSetting("game.editor.dockSide", "bottom")); 
+            }, 0);
+        } else {
+            angular.element(".resize-handle-horizontal").hide();
+        }
 
-    // Add word wrap toggle button to console left column controls
-    // TODO: Use tooltip-placement="right" uib-tooltip="Toggle word wrap" instead of title
-    //  after fixing scope issue caused by re-compiling elements
-    const wordWrapElem = angular.element(`<button class="md-primary md-hue-1 md-button md-ink-ripple" style="font-size: 0;" title="Toggle word wrap">
+        // Add word wrap toggle button to console left column controls
+        // TODO: Use tooltip-placement="right" uib-tooltip="Toggle word wrap" instead of title
+        //  after fixing scope issue caused by re-compiling elements
+        const wordWrapElem = angular.element(`<button class="md-primary md-hue-1 md-button md-ink-ripple" style="font-size: 0;" title="Toggle word wrap">
       <svg
         width="14" height="14"
         style="stroke: #7986cb; stroke-width: 1.5; fill: transparent; display: inline-block;"
@@ -535,26 +523,26 @@ ScreepsAdapter.ready(() => {
         <line class="word-wrap-disabled" x1="1" y1="13" x2="13" y2="1"></line>
       </svg>
     </button>`);
-    wordWrapElem.insertAfter(angular.element('.console-controls button')[0]);
+        wordWrapElem.insertAfter(angular.element(".console-controls button")[0]);
 
-    const updateWordWrap = () => {
-      const enabled = getSetting('console.wordWrap', true);
-      const [listMethod, buttonMethod] = enabled ?
-        ['addClass', 'hide'] :
-        ['removeClass', 'show'];
-      angular.element('.console-messages-list')[listMethod]('wrap-text');
-      angular.element('button svg .word-wrap-disabled')[buttonMethod]();
-    }
-    wordWrapElem.on('click', (e) => {
-      setSetting('console.wordWrap', getSetting('console.wordWrap', true));
-      updateWordWrap();
-    });
-    updateWordWrap();
+        const updateWordWrap = () => {
+            const enabled = ScreepsAdapter.getSetting("console.wordWrap", true);
+            const [listMethod, buttonMethod] = enabled ?
+                ["addClass", "hide"] :
+                ["removeClass", "show"];
+            angular.element(".console-messages-list")[listMethod]("wrap-text");
+            angular.element("button svg .word-wrap-disabled")[buttonMethod]();
+        }
+        wordWrapElem.on("click", (_e) => {
+            ScreepsAdapter.setSetting("console.wordWrap", ScreepsAdapter.getSetting("console.wordWrap", true));
+            updateWordWrap();
+        });
+        updateWordWrap();
 
-    // Add font size up/down buttons to console left column controls
-    // TODO: Use tooltip-placement="right" uib-tooltip="Increase font size" instead of title
-    //  after fixing scope issue caused by re-compiling elements
-    const fontSmallerElem = angular.element(`<button class="md-primary md-hue-1 md-button md-ink-ripple" style="font-size: 0;" title="Decrease font size">
+        // Add font size up/down buttons to console left column controls
+        // TODO: Use tooltip-placement="right" uib-tooltip="Increase font size" instead of title
+        //  after fixing scope issue caused by re-compiling elements
+        const fontSmallerElem = angular.element(`<button class="md-primary md-hue-1 md-button md-ink-ripple" style="font-size: 0;" title="Decrease font size">
       <svg
         width="14" height="14"
         style="stroke: #7986cb; stroke-width: 1.5; fill: transparent; display: inline-block;"
@@ -566,9 +554,9 @@ ScreepsAdapter.ready(() => {
         <line x1="9" y1="4" x2="13" y2="4" style="stroke-width: 1;"></line>
       </svg>
     </button>`);
-    fontSmallerElem.insertAfter(angular.element('.console-controls button')[0]);
+        fontSmallerElem.insertAfter(angular.element(".console-controls button")[0]);
 
-    const fontLargerElem = angular.element(`<button class="md-primary md-hue-1 md-button md-ink-ripple" style="font-size: 0;" title="Increase font size">
+        const fontLargerElem = angular.element(`<button class="md-primary md-hue-1 md-button md-ink-ripple" style="font-size: 0;" title="Increase font size">
       <svg
         width="14" height="14"
         style="stroke: #7986cb; stroke-width: 1.5; fill: transparent; display: inline-block;"
@@ -581,13 +569,13 @@ ScreepsAdapter.ready(() => {
         <line x1="11" y1="1" x2="11" y2="7" style="stroke-width: 1;"></line>
       </svg>
     </button>`);
-    fontLargerElem.insertAfter(angular.element('.console-controls button')[0]);
+        fontLargerElem.insertAfter(angular.element(".console-controls button")[0]);
 
-    const updateFontSize = (delta) => {
-      fontSize += delta;
-      setSetting('console.fontSize', `${fontSize}px`);
-      angular.element('#console-font-size').remove();
-      $('body').append(`<style id='console-font-size' type='text/css'>
+        const updateFontSize = (delta) => {
+            fontSize += delta;
+            ScreepsAdapter.setSetting("console.fontSize", `${fontSize}px`);
+            angular.element("#console-font-size").remove();
+            $("body").append(`<style id='console-font-size' type='text/css'>
         /* Increase console font size */
         section.console.ng-scope,
         .console-input .ace_editor {
@@ -597,91 +585,91 @@ ScreepsAdapter.ready(() => {
           font-size: ${fontSize - 2}px;
         }
       </style>`);
-      angular.element('.console-input .ace_editor')[0].env.editor.setOptions({
-        fontSize,
-      });
-      if (delta) {
-        console.info(`[screeps-gui-extender] updated console font size: ${fontSize}px`);
-      }
-    };
-    fontSmallerElem.on('click', (e) => updateFontSize(-1));
-    fontLargerElem.on('click', (e) => updateFontSize(1));
-    updateFontSize(0);
+            angular.element(".console-input .ace_editor")[0].env.editor.setOptions({
+                fontSize,
+            });
+            if (delta) {
+                console.info(`[screeps-gui-extender] updated console font size: ${fontSize}px`);
+            }
+        };
+        fontSmallerElem.on("click", (_e) => updateFontSize(-1));
+        fontLargerElem.on("click", (_e) => updateFontSize(1));
+        updateFontSize(0);
 
-    // Customize Console input editor settings;
-    // to get a reference to the Script tab's editor, use this selector: 'section.script .ace_editor'
-    const editor = angular.element('.console-input .ace_editor')[0].env.editor;
-    editor.setOptions({
-      copyWithEmptySelection: true,
-      dragEnabled: false,
-      enableMultiselect: false,
-      fontSize: fontSize,
-      tabSize: 2,
-      tooltipFollowsMouse: false,
-      wrapBehavioursEnabled: false,
-    });
+        // Customize Console input editor settings;
+        // to get a reference to the Script tab's editor, use this selector: 'section.script .ace_editor'
+        const editor = angular.element(".console-input .ace_editor")[0].env.editor;
+        editor.setOptions({
+            copyWithEmptySelection: true,
+            dragEnabled: false,
+            enableMultiselect: false,
+            fontSize: fontSize,
+            tabSize: 2,
+            tooltipFollowsMouse: false,
+            wrapBehavioursEnabled: false,
+        });
 
-  }
-  ScreepsAdapter.onViewChange((triggerName) => {
-    if (triggerName !== 'roomEntered') {
-      return;
     }
-
-    customizeEditorPanel();
-  });
-  customizeEditorPanel();
-
-  // Hack to fix game renderer viewport dimensions for side-docked editor panel
-  // when returning to room view from history view
-  let isHistoryViewActive = window.location.hash.startsWith('#!/history/');
-  const fixViewForHistoryTransition = () => {
-    if (window.location.hash.startsWith('#!/room/')) {
-      if (isHistoryViewActive && (!angular.element('.editor-panel').length || !angular.element('section.room').length)) {
-        setTimeout(fixViewForHistoryTransition, 50);
-        return;
-      }
-
-      if (isHistoryViewActive) {
-        const toggled = getSetting('game.editor.dockLeft', false);
-        if (toggled) {
-          setTimeout(() => {
-            const editorWidth = getSetting('game.editor.width', Math.floor(window.screen.width * 0.4).toString());
-            angular.element('section.room')[0].style.left = `${parseInt(editorWidth) + 5}px`;
-            angular.element('section.room')[0].style.bottom = '0';
-            angular.element('section.room').scope().$broadcast('resize', { sameSize: !0 });
-          }, 750);
+    ScreepsAdapter.onViewChange((triggerName) => {
+        if (triggerName !== "roomEntered") {
+            return;
         }
-      }
-      isHistoryViewActive = false;
-    }
 
-    if (window.location.hash.startsWith('#!/history/')) {
-      isHistoryViewActive = true;
-    }
-  };
-  ScreepsAdapter.onHashChange(fixViewForHistoryTransition);
+        customizeEditorPanel();
+    });
+    customizeEditorPanel();
 
-  // Auto-collapse World Room right-column tab in Room view
-  function collapseWorldRoomTab() {
-    const asideBlockElem = angular.element('.world-room .aside-block-header');
-    if (!asideBlockElem || !asideBlockElem.scope()) {
-      setTimeout(collapseWorldRoomTab, 50);
-      return;
-    }
+    // Hack to fix game renderer viewport dimensions for side-docked editor panel
+    // when returning to room view from history view
+    let isHistoryViewActive = window.location.hash.startsWith("#!/history/");
+    const fixViewForHistoryTransition = () => {
+        if (window.location.hash.startsWith("#!/room/")) {
+            if (isHistoryViewActive && (!angular.element(".editor-panel").length || !angular.element("section.room").length)) {
+                setTimeout(fixViewForHistoryTransition, 50);
+                return;
+            }
 
-    asideBlockElem.scope().AsideBlock.show = false;
-  }
-  ScreepsAdapter.onViewChange((triggerName) => {
-    if (triggerName !== 'roomEntered') {
-      return;
-    }
+            if (isHistoryViewActive) {
+                const toggled = ScreepsAdapter.getSetting("game.editor.dockLeft", false);
+                if (toggled) {
+                    setTimeout(() => {
+                        const editorWidth = ScreepsAdapter.getSetting("game.editor.width", Math.floor(window.screen.width * 0.4).toString());
+                        angular.element("section.room")[0].style.left = `${parseInt(editorWidth, 10) + 5}px`;
+                        angular.element("section.room")[0].style.bottom = "0";
+                        angular.element("section.room").scope().$broadcast("resize", { sameSize: !0 });
+                    }, 750);
+                }
+            }
+            isHistoryViewActive = false;
+        }
 
+        if (window.location.hash.startsWith("#!/history/")) {
+            isHistoryViewActive = true;
+        }
+    };
+    ScreepsAdapter.onHashChange(fixViewForHistoryTransition);
+
+    // Auto-collapse World Room right-column tab in Room view
+    function collapseWorldRoomTab() {
+        const asideBlockElem = angular.element(".world-room .aside-block-header");
+        if (!asideBlockElem || !asideBlockElem.scope()) {
+            setTimeout(collapseWorldRoomTab, 50);
+            return;
+        }
+
+        asideBlockElem.scope().AsideBlock.show = false;
+    }
+    ScreepsAdapter.onViewChange((triggerName) => {
+        if (triggerName !== "roomEntered") {
+            return;
+        }
+
+        collapseWorldRoomTab();
+    });
     collapseWorldRoomTab();
-  });
-  collapseWorldRoomTab();
 
-  // Add styling to hide Room/Creep decoration UIs from the right column
-  $('body').append(`<style type='text/css'>
+    // Add styling to hide Room/Creep decoration UIs from the right column
+    $("body").append(`<style type='text/css'>
     .aside-content .room-decorations {
       display: none !important;
     }
@@ -691,32 +679,32 @@ ScreepsAdapter.ready(() => {
     }
   </style>`);
 
-  // Removes the false positive update notification on PTR
-  ScreepsAdapter.onViewChange((triggerName) => {
-    if (triggerName !== 'view') {
-      return;
-    }
+    // Removes the false positive update notification on PTR
+    ScreepsAdapter.onViewChange((triggerName) => {
+        if (triggerName !== "view") {
+            return;
+        }
 
-    // Ensure this change only occurs on PTR
-    if (angular.element(document.body).scope().ptr) {
-      angular.element('.dlg-version-updated').remove();
-    }
-  });
+        // Ensure this change only occurs on PTR
+        if (angular.element(document.body).scope().ptr) {
+            angular.element(".dlg-version-updated").remove();
+        }
+    });
 
-  // Add game clock to top navbar
-  function initGameClockDisplay() {
+    // Add game clock to top navbar
+    function initGameClockDisplay() {
     // Wait for relevant views/scopes to be ready
-    let targetElem = angular.element('.navbar-resources.--flex.ng-scope');
-    let injector = targetElem.injector();
-    let viewScope = angular.element('section.room').scope();
-    if (!injector || !viewScope) {
-      setTimeout(initGameClockDisplay, 50);
-      return;
-    }
+        let targetElem = angular.element(".navbar-resources.--flex.ng-scope");
+        let injector = targetElem.injector();
+        let viewScope = angular.element("section.room").scope();
+        if (!injector || !viewScope) {
+            setTimeout(initGameClockDisplay, 50);
+            return;
+        }
 
-    // Create display element
-    let compile = injector.get('$compile');
-    let newElem = angular.element(`
+        // Create display element
+        let compile = injector.get("$compile");
+        let newElem = angular.element(`
       <div class="game-time --flex" style="float: right; line-height: 40px; margin: 0 8px;">
         <div class="--color-text-80">
           <span class="--flex">
@@ -725,120 +713,120 @@ ScreepsAdapter.ready(() => {
         </div>
       </div>
     `);
-    compile(newElem)(viewScope);
-    newElem.insertAfter(targetElem);
-  };
-  ScreepsAdapter.onHashChange((hash) => {
-    const clockElem = angular.element('.game-time.--flex')[0];
-    if (hash.startsWith('#!/room/')) {
-      if (!clockElem) {
-        initGameClockDisplay();
-      }
-      return;
-    }
+        compile(newElem)(viewScope);
+        newElem.insertAfter(targetElem);
+    };
+    ScreepsAdapter.onHashChange((hash) => {
+        const clockElem = angular.element(".game-time.--flex")[0];
+        if (hash.startsWith("#!/room/")) {
+            if (!clockElem) {
+                initGameClockDisplay();
+            }
+            return;
+        }
 
-    if (clockElem) {
-      clockElem.remove();
-    }
-  });
+        if (clockElem) {
+            clockElem.remove();
+        }
+    });
 
-  // Add GPL display / power creep link to top navbar
-  function initGplDisplay() {
+    // Add GPL display / power creep link to top navbar
+    function initGplDisplay() {
     // Remove old display
-    angular.element('.gpl-display').remove();
+        angular.element(".gpl-display").remove();
 
-    // Wait for relevant views/scopes to be ready
-    const targetElem = angular.element('.navbar-resources.--flex.ng-scope');
-    const viewScope = targetElem.scope();
-    const compile = ScreepsAdapter.$compile;
-    if (!viewScope || !compile) {
-      setTimeout(initGplDisplay, 50);
-      return;
-    }
+        // Wait for relevant views/scopes to be ready
+        const targetElem = angular.element(".navbar-resources.--flex.ng-scope");
+        const viewScope = targetElem.scope();
+        const compile = ScreepsAdapter.$compile;
+        if (!viewScope || !compile) {
+            setTimeout(initGplDisplay, 50);
+            return;
+        }
 
-    // TODO: Use POWER_LEVEL_MULTIPLY and POWER_LEVEL_POW pulled from `angular.element('section.room').scope().Room.Constants`
-    const multiply = 1000;
-    const pow = 2;
-    viewScope.getPowerLevelProgress = (Me) => {
-      const me = Me();
-      const level = me.getPowerLevel();
-      const toCurrent = level ? Math.round(multiply * Math.pow(level, pow)) : 0;
-      const progress = (me.power || 0) - toCurrent;
-      const progressTotal = Math.round(multiply * Math.pow(level + 1, pow)) - toCurrent;
-      return `${(progress || 0).toLocaleString()} / ${(progressTotal || 0).toLocaleString()}`;
-    };
-    viewScope.getPowerLevelFloat = (Me) => {
-      const me = Me();
-      const level = me.getPowerLevel();
-      const toCurrent = level ? Math.round(multiply * Math.pow(level, pow)) : 0;
-      const progress = (me.power || 0) - toCurrent;
-      const progressTotal = Math.round(multiply * Math.pow(level + 1, pow)) - toCurrent;
-      const progressFloat = level + Math.floor((progress / progressTotal) * 1000) / 1000;
-      return progressFloat.toFixed(3);
-    };
+        // TODO: Use POWER_LEVEL_MULTIPLY and POWER_LEVEL_POW pulled from `angular.element('section.room').scope().Room.Constants`
+        const multiply = 1000;
+        const pow = 2;
+        viewScope.getPowerLevelProgress = (Me) => {
+            const me = Me();
+            const level = me.getPowerLevel();
+            const toCurrent = level ? Math.round(multiply * Math.pow(level, pow)) : 0;
+            const progress = (me.power || 0) - toCurrent;
+            const progressTotal = Math.round(multiply * Math.pow(level + 1, pow)) - toCurrent;
+            return `${(progress || 0).toLocaleString()} / ${(progressTotal || 0).toLocaleString()}`;
+        };
+        viewScope.getPowerLevelFloat = (Me) => {
+            const me = Me();
+            const level = me.getPowerLevel();
+            const toCurrent = level ? Math.round(multiply * Math.pow(level, pow)) : 0;
+            const progress = (me.power || 0) - toCurrent;
+            const progressTotal = Math.round(multiply * Math.pow(level + 1, pow)) - toCurrent;
+            const progressFloat = level + Math.floor((progress / progressTotal) * 1000) / 1000;
+            return progressFloat.toFixed(3);
+        };
 
-    // Create display element
-    const newElem = angular.element(`
+        // Create display element
+        const newElem = angular.element(`
       <div class="gpl-display --color-text-80" uib-tooltip-html="('Next level:<br/>' + getPowerLevelProgress(Me)) | trust" tooltip-placement="bottom">
         <a class="--flex ng-binding" ng-href="#!/overview/power" href="#!/overview/power">
           GPL {{getPowerLevelFloat(Me)}}
         </a>
       </div>
     `);
-    compile(newElem)(viewScope);
-    newElem.prependTo(targetElem[0]);
-  }
-  initGplDisplay();
-
-  // Add GCL display / profile overview link to top navbar
-  function initGclDisplay() {
-    // Remove old display
-    angular.element('.gcl-display').remove();
-
-    // Wait for relevant views/scopes to be ready
-    const targetElem = angular.element('.navbar-resources.--flex.ng-scope');
-    const viewScope = targetElem.scope();
-    const compile = ScreepsAdapter.$compile;
-    if (!viewScope || !compile) {
-      setTimeout(initGclDisplay, 50);
-      return;
+        compile(newElem)(viewScope);
+        newElem.prependTo(targetElem[0]);
     }
+    initGplDisplay();
 
-    // TODO: Use GCL_MULTIPLY and GCL_POW pulled from `angular.element('section.room').scope().Room.Constants`
-    const multiply = 1000000;
-    const pow = 2.4;
-    viewScope.getGclProgress = (Me) => {
-      const me = Me();
-      const level = me.getGcl();
-      const toCurrent = Math.round(multiply * Math.pow(level - 1, pow));
-      const progress = me.gcl - toCurrent;
-      const progressTotal = Math.round(multiply * Math.pow(level, pow)) - toCurrent;
-      return `${(progress || 0).toLocaleString()} / ${(progressTotal || 0).toLocaleString()}`;
-    };
-    viewScope.getGclFloat = (Me) => {
-      const me = Me();
-      const level = me.getGcl();
-      const toCurrent = Math.round(multiply * Math.pow(level - 1, pow));
-      const progress = me.gcl - toCurrent;
-      const progressTotal = Math.round(multiply * Math.pow(level, pow)) - toCurrent;
-      const progressFloat = level + Math.floor((progress / progressTotal) * 1000) / 1000;
-      return progressFloat.toFixed(3);
-    };
+    // Add GCL display / profile overview link to top navbar
+    function initGclDisplay() {
+    // Remove old display
+        angular.element(".gcl-display").remove();
 
-    // Create display element
-    const newElem = angular.element(`
+        // Wait for relevant views/scopes to be ready
+        const targetElem = angular.element(".navbar-resources.--flex.ng-scope");
+        const viewScope = targetElem.scope();
+        const compile = ScreepsAdapter.$compile;
+        if (!viewScope || !compile) {
+            setTimeout(initGclDisplay, 50);
+            return;
+        }
+
+        // TODO: Use GCL_MULTIPLY and GCL_POW pulled from `angular.element('section.room').scope().Room.Constants`
+        const multiply = 1000000;
+        const pow = 2.4;
+        viewScope.getGclProgress = (Me) => {
+            const me = Me();
+            const level = me.getGcl();
+            const toCurrent = Math.round(multiply * Math.pow(level - 1, pow));
+            const progress = me.gcl - toCurrent;
+            const progressTotal = Math.round(multiply * Math.pow(level, pow)) - toCurrent;
+            return `${(progress || 0).toLocaleString()} / ${(progressTotal || 0).toLocaleString()}`;
+        };
+        viewScope.getGclFloat = (Me) => {
+            const me = Me();
+            const level = me.getGcl();
+            const toCurrent = Math.round(multiply * Math.pow(level - 1, pow));
+            const progress = me.gcl - toCurrent;
+            const progressTotal = Math.round(multiply * Math.pow(level, pow)) - toCurrent;
+            const progressFloat = level + Math.floor((progress / progressTotal) * 1000) / 1000;
+            return progressFloat.toFixed(3);
+        };
+
+        // Create display element
+        const newElem = angular.element(`
       <div class="gcl-display --color-text-80" uib-tooltip-html="('Next level:<br/>' + getGclProgress(Me)) | trust" tooltip-placement="bottom">
         <a class="--flex ng-binding" ng-href="#!/overview" href="#!/overview">
           GCL {{getGclFloat(Me)}}
         </a>
       </div>
     `);
-    compile(newElem)(viewScope);
-    newElem.prependTo(targetElem[0]);
-  }
-  initGclDisplay();
+        compile(newElem)(viewScope);
+        newElem.prependTo(targetElem[0]);
+    }
+    initGclDisplay();
 
-  /**
+    /**
    * Helper function to extend display properties of an object
    * @param objectType: string -- if defined, must be one of the following values:
    *   - One of the `STRUCTURE_*` const values
@@ -854,91 +842,91 @@ ScreepsAdapter.ready(() => {
    *   - flag
    * @param callback: (selectedObject: RoomObject, objectPropsElem: HTTPElement) => void
    */
-  function updateObjectProperties(objectType, callback) {
-    ScreepsAdapter.onViewChange((triggerName) => {
-      if (triggerName !== 'view') {
-        return;
-      }
+    function updateObjectProperties(objectType, callback) {
+        ScreepsAdapter.onViewChange((triggerName) => {
+            if (triggerName !== "view") {
+                return;
+            }
 
-      let roomScope = angular.element('section.room').scope();
-      let selectedObject = roomScope.Room.selectedObject;
-      if (!selectedObject || (objectType && selectedObject.type !== objectType)) {
-        return;
-      }
+            let roomScope = angular.element("section.room").scope();
+            let selectedObject = roomScope.Room.selectedObject;
+            if (!selectedObject || (objectType && selectedObject.type !== objectType)) {
+                return;
+            }
 
-      setTimeout(() => {
-        let objectPropsElem = angular.element('.object-properties .aside-block-content');
-        if (!objectPropsElem[0]) {
-          return;
-        }
+            setTimeout(() => {
+                let objectPropsElem = angular.element(".object-properties .aside-block-content");
+                if (!objectPropsElem[0]) {
+                    return;
+                }
 
-        callback(selectedObject, objectPropsElem);
-      }, 50);
-    });
-  }
+                callback(selectedObject, objectPropsElem);
+            }, 50);
+        });
+    }
 
-  /**
+    /**
    * Called by creep/powerCreep movement buttons to move the selected creep
    * in the button's assigned direction
    */
-  function move(event) {
-    const selectedObject = angular.element('section.room').scope().Room.selectedObject;
-    if (!selectedObject || (selectedObject.type !== 'creep' && selectedObject.type !== 'powerCreep')) {
-      console.warn('[screeps-gui-extender] selected object is missing or not a creep/powerCreep:', selectedObject);
-      return;
-    }
+    function move(event) {
+        const selectedObject = angular.element("section.room").scope().Room.selectedObject;
+        if (!selectedObject || (selectedObject.type !== "creep" && selectedObject.type !== "powerCreep")) {
+            console.warn("[screeps-gui-extender] selected object is missing or not a creep/powerCreep:", selectedObject);
+            return;
+        }
 
-    const room = angular.element('section.room').scope().Room;
-    const roomName = room.roomName;
-    const shardName = room.shardName;
-    const btnElem = angular.element(event.currentTarget);
-    const directionName = btnElem.data('direction-name');
-    const directionValue = btnElem.data('direction-value');
+        const room = angular.element("section.room").scope().Room;
+        const roomName = room.roomName;
+        const shardName = room.shardName;
+        const btnElem = angular.element(event.currentTarget);
+        const directionName = btnElem.data("direction-name");
+        const directionValue = btnElem.data("direction-value");
 
-    ScreepsAdapter.Api.post('game/add-object-intent', {
-      _id: selectedObject._id,
-      room: roomName,
-      name: 'move',
-      intent: {
-        direction: directionValue,
-      },
-      shard: shardName,
-    });
+        ScreepsAdapter.Api.post("game/add-object-intent", {
+            _id: selectedObject._id,
+            room: roomName,
+            name: "move",
+            intent: {
+                direction: directionValue,
+            },
+            shard: shardName,
+        });
 
-    console.debug(`[screeps-gui-extender] moving ${selectedObject.type} ${selectedObject._id} in direction ${directionName}`);
-  };
+        console.debug(`[screeps-gui-extender] moving ${selectedObject.type} ${selectedObject._id} in direction ${directionName}`);
+    };
 
-  const moveCtrlsClass = 'move-ctrls';
-  const moveCtrlClass = 'move-ctrl';
-  const moveBtnClass = 'move-btn';
+    const moveCtrlsClass = "move-ctrls";
+    const moveCtrlClass = "move-ctrl";
+    const moveBtnClass = "move-btn";
 
-  /**
+    /**
    * Add movement controls to creeps / power creeps
    */
-  function addMovementControls(objectType, objectPropsElem) {
+    function addMovementControls(objectType, objectPropsElem) {
     // Don't add duplicate sets of controls
-    if (objectPropsElem.find(`${objectPropsElem.selector} .${moveCtrlsClass}`).length) {
-      return;
-    }
+        if (objectPropsElem.find(`${objectPropsElem.selector} .${moveCtrlsClass}`).length) {
+            return;
+        }
 
-    // Build movement controls element
-    const ctrlElemAttrs = [
-      ['⬉', 'TOP_LEFT', 8],
-      ['⬆', 'TOP', 1],
-      ['⬈', 'TOP_RIGHT', 2],
-      ['⬅', 'LEFT', 7],
-      [undefined, undefined],
-      ['➡', 'RIGHT', 3],
-      ['⬋', 'BOTTOM_LEFT', 6],
-      ['⬇', 'BOTTOM', 5],
-      ['⬊', 'BOTTOM_RIGHT', 4],
-    ];
-    const ctrlElems = ctrlElemAttrs.map(([icon, directionName, directionValue]) => `
+        // Build movement controls element
+        const ctrlElemAttrs = [
+            ["⬉", "TOP_LEFT", 8],
+            ["⬆", "TOP", 1],
+            ["⬈", "TOP_RIGHT", 2],
+            ["⬅", "LEFT", 7],
+            [undefined, undefined],
+            ["➡", "RIGHT", 3],
+            ["⬋", "BOTTOM_LEFT", 6],
+            ["⬇", "BOTTOM", 5],
+            ["⬊", "BOTTOM_RIGHT", 4],
+        ];
+        const ctrlElems = ctrlElemAttrs.map(([icon, directionName, directionValue]) => `
       <div class="${moveCtrlClass} col col-xs-4 px-0 p-0">
-        ${icon ? `<button class="md-button md-raised ${moveBtnClass}" type="button" clickable data-direction-name="${directionName}" data-direction-value="${directionValue}">${icon}</button>` : '<span>&nbsp</span>'}
+        ${icon ? `<button class="md-button md-raised ${moveBtnClass}" type="button" clickable data-direction-name="${directionName}" data-direction-value="${directionValue}">${icon}</button>` : "<span>&nbsp</span>"}
       </div>
-    `).join('\n');
-    const ctrlsElem = angular.element(`
+    `).join("\n");
+        const ctrlsElem = angular.element(`
       <style type='text/css'>
         .${moveCtrlsClass}  {
           padding: 0;
@@ -957,226 +945,227 @@ ScreepsAdapter.ready(() => {
       </div>
     `);
 
-    // Insert movement controls above notify checkbox
-    const targetElem = angular.element(`${objectPropsElem.selector} md-checkbox`)[0];
-    ctrlsElem.insertBefore(targetElem);
+        // Insert movement controls above notify checkbox
+        const targetElem = angular.element(`${objectPropsElem.selector} md-checkbox`)[0];
+        ctrlsElem.insertBefore(targetElem);
 
-    // Attach event listeners
-    angular.element(`.${moveBtnClass}`).on('click', move);
+        // Attach event listeners
+        angular.element(`.${moveBtnClass}`).on("click", move);
 
-    console.debug(`[screeps-gui-extender] added ${objectType} movement controls`);
-  }
+        console.debug(`[screeps-gui-extender] added ${objectType} movement controls`);
+    }
 
-  const copyBtnClass = 'copy-btn';
+    const copyBtnClass = "copy-btn";
 
-  /**
+    /**
    * Appends a button to the specified target that
    * copies the named property of the selected object to the clipboard
    */
-  function addCopyButton(objectPropsElem, targetSelector, propertyName) {
+    function addCopyButton(objectPropsElem, targetSelector, propertyName) {
     // Don't add duplicate sets of controls
-    const targetElem = objectPropsElem.find(targetSelector);
-    if (targetElem.find(`.${copyBtnClass}`).length) {
-      return;
+        const targetElem = objectPropsElem.find(targetSelector);
+        if (targetElem.find(`.${copyBtnClass}`).length) {
+            return;
+        }
+
+        // Add copy button
+        const newElem = angular.element(`<button class="${copyBtnClass} md-button md-primary md-ink-ripple" style="padding: 0px;"><i class="fa fa-copy"></i></button>`);
+        targetElem.append(newElem);
+
+        // Add copy behavior
+        newElem.on("click", (_e) => {
+            const selectedObject = angular.element("section.room").scope().Room.selectedObject;
+            if (!selectedObject) {
+                console.warn(`[screeps-gui-extender][addCopyButton][${propertyName}] no selected object found`);
+                return;
+            }
+
+            const value = selectedObject[propertyName];
+            navigator.clipboard.writeText(value);
+            // TODO: Show tooltip
+        });
     }
 
-    // Add copy button
-    const newElem = angular.element(`<button class="${copyBtnClass} md-button md-primary md-ink-ripple" style="padding: 0px;"><i class="fa fa-copy"></i></button>`);
-    targetElem.append(newElem);
-
-    // Add copy behavior
-    newElem.on('click', (e) => {
-      const selectedObject = angular.element('section.room').scope().Room.selectedObject;
-      if (!selectedObject) {
-        console.warn(`[screeps-gui-extender][addCopyButton][${propertyName}] no selected object found`);
-        return;
-      }
-
-      const value = selectedObject[propertyName];
-      navigator.clipboard.writeText(value);
-      // TODO: Show tooltip
+    updateObjectProperties("creep", (selectedObject, objectPropsElem) => {
+        addMovementControls("creep", objectPropsElem);
+        addCopyButton(objectPropsElem, ".ng-binding:nth-of-type(3)", "name");
     });
-  }
+    updateObjectProperties("powerCreep", (selectedObject, objectPropsElem) => {
+        addMovementControls("powerCreep", objectPropsElem);
+        addCopyButton(objectPropsElem, ".ng-binding:nth-of-type(3)", "name");
+    });
+    updateObjectProperties("flag", (selectedObject, objectPropsElem) => {
+        addCopyButton(objectPropsElem, ".ng-binding:nth-of-type(2)", "name");
+    });
 
-  updateObjectProperties('creep', (selectedObject, objectPropsElem) => {
-    addMovementControls('creep', objectPropsElem);
-    addCopyButton(objectPropsElem, '.ng-binding:nth-of-type(3)', 'name');
-  });
-  updateObjectProperties('powerCreep', (selectedObject, objectPropsElem) => {
-    addMovementControls('powerCreep', objectPropsElem);
-    addCopyButton(objectPropsElem, '.ng-binding:nth-of-type(3)', 'name');
-  });
-  updateObjectProperties('flag', (selectedObject, objectPropsElem) => {
-    addCopyButton(objectPropsElem, '.ng-binding:nth-of-type(2)', 'name');
-  });
+    // Map view customizations
+    // eslint-disable-next-line no-unused-vars -- entry point commented out pending TODO below
+    function extendMapStats() {
+        const expansionData = {};
+        const pendingData = {};
 
-  // Map view customizations
-  function extendMapStats() {
-    const expansionData = {};
-    const pendingData = {};
+        const getMissingRoomObjects = (scope) => {
+            const shard = scope.WorldMap.shard;
+            expansionData[shard] ||= {};
+            pendingData[shard] ||= {};
 
-    const getMissingRoomObjects = (scope) => {
-      const shard = scope.WorldMap.shard;
-      expansionData[shard] ||= {};
-      pendingData[shard] ||= {};
+            const roomNames = _(scope.WorldMap.sectors)
+                .map((s) => s.name)
+                .compact()
+                .filter((room) => !expansionData[shard][room] && !pendingData[shard][room])
+                .sort()
+                .value();
+            if (!roomNames.length) {
+                return;
+            }
 
-      const roomNames = _(scope.WorldMap.sectors)
-        .map((s) => s.name)
-        .compact()
-        .filter((room) => !expansionData[shard][room] && !pendingData[shard][room])
-        .sort()
-        .value();
-      if (!roomNames.length) {
-        return;
-      }
+            console.debug(`[screeps-gui-extender] querying room objects for rooms:`, roomNames);
+            const now = Date.now();
+            for (const room of roomNames) {
+                pendingData[shard][room] = now;
+                ScreepsAdapter.Api.get("game/room-objects", { shard, room }).then((response) => {
+                    if (!response.ok) {
+                        delete pendingData[shard][room];
+                        console.warn(`[screeps-gui-extender] failed to fetch room objects for ${shard}/${room}:`, response);
+                        return;
+                    }
 
-      console.debug(`[screeps-gui-extender] querying room objects for rooms:`, roomNames);
-      const now = Date.now();
-      for (const room of roomNames) {
-        pendingData[shard][room] = now;
-        ScreepsAdapter.Api.get('game/room-objects', { shard, room }).then((response) => {
-          if (!response.ok) {
-            delete pendingData[shard][room];
-            console.warn(`[screeps-gui-extender] failed to fetch room objects for ${shard}/${room}:`, response);
-            return;
-          }
+                    // Room must have an unclaimed controller
+                    const controller = _.find(response.objects, (o) => o.type === "controller") || null;
+                    if (!controller || controller.level) {
+                        expansionData[shard][room] = {
+                            qualified: false,
+                            controller,
+                        };
+                        delete pendingData[shard][room];
+                        return;
+                    }
 
-          // Room must have an unclaimed controller
-          const controller = _.find(response.objects, (o) => o.type === 'controller') || null;
-          if (!controller || controller.level) {
-            expansionData[shard][room] = {
-              qualified: false,
-              controller,
-            };
-            delete pendingData[shard][room];
-            return;
-          }
+                    // Room must have two sources
+                    const numSrcs = _.filter(response.objects, (o) => o.type === "source").length;
+                    const mineral = _.find(response.objects, (o) => o.type === "mineral");
+                    const qualified = numSrcs >= 2;
+                    expansionData[shard][room] = {
+                        qualified,
+                        controller,
+                        numSrcs,
+                        mineral,
+                    };
+                    delete pendingData[shard][room];
 
-          // Room must have two sources
-          const numSrcs = _.filter(response.objects, (o) => o.type === 'source').length;
-          const mineral = _.find(response.objects, (o) => o.type === 'mineral');
-          const qualified = numSrcs >= 2;
-          expansionData[shard][room] = {
-            qualified,
-            controller,
-            numSrcs,
-            mineral,
-          };
-          delete pendingData[shard][room];
+                    if (qualified) {
+                        console.debug(`[screeps-gui-extender] ${shard}/${room} is a good candidate for expansion:`, expansionData[shard][room]);
+                        updateMapView();
+                    }
+                });
+            }
+        };
 
-          if (qualified) {
-            console.debug(`[screeps-gui-extender] ${shard}/${room} is a good candidate for expansion:`, expansionData[shard][room]);
-            updateMapView();
-          }
-        });
-      }
-    };
-
-    const updateMapView = debounce(() => {
-      console.debug(expansionData);
-      const roomElts = angular.element('div.map-container div.map-sector');
-      for (let i = 0; i < roomElts.length; i++) {
-        const roomElt = angular.element(roomElts[i]);
-        // Stats elt is not shown for unowned rooms in owner0 mode
-        /* const statsElt = roomElt.find('div.room-stats')[0];
+        const updateMapView = debounce(() => {
+            console.debug(expansionData);
+            const roomElts = angular.element("div.map-container div.map-sector");
+            for (let i = 0; i < roomElts.length; i++) {
+                const roomElt = angular.element(roomElts[i]);
+                // Stats elt is not shown for unowned rooms in owner0 mode
+                /* const statsElt = roomElt.find('div.room-stats')[0];
         if (!statsElt) {
           continue;
         } */
 
-        const [shard, room] = roomElt.find('canvas.room-objects').attr('app:game-map-room-objects');
-        if (!expansionData[shard]) {
-          return;
-        }
-        const data = expansionData[shard][room];
-        roomElt.style.border = (data && data.qualified) ? 'thick double #33ff99' : '';
-      }
-    }, 1000);
+                const [shard, room] = roomElt.find("canvas.room-objects").attr("app:game-map-room-objects");
+                if (!expansionData[shard]) {
+                    return;
+                }
+                const data = expansionData[shard][room];
+                roomElt.style.border = (data && data.qualified) ? "thick double #33ff99" : "";
+            }
+        }, 1000);
 
-    // Watch for new visible rooms on world map
-    let removeWatcher;
-    const initializeWatcher = () => {
-      // Only register one watcher at a time
-      if (removeWatcher) {
-        removeWatcher();
-      }
+        // Watch for new visible rooms on world map
+        let removeWatcher;
+        const initializeWatcher = () => {
+            // Only register one watcher at a time
+            if (removeWatcher) {
+                removeWatcher();
+            }
 
-      // Wait for scope
-      const targetElt = angular.element('section.world-map');
-      const scope = targetElt && targetElt.scope();
-      if (!scope) {
-        setTimeout(extendMapStats, 50);
-        return;
-      }
+            // Wait for scope
+            const targetElt = angular.element("section.world-map");
+            const scope = targetElt && targetElt.scope();
+            if (!scope) {
+                setTimeout(extendMapStats, 50);
+                return;
+            }
 
-      removeWatcher = scope.$watch(
-        (scope) => _(scope.WorldMap.sectors).map((s) => s.name).compact().join(','),
-        (newVal, oldVal, scope) => {
-          getMissingRoomObjects(scope);
-          updateMapView();
-        },
-      );
-    };
+            removeWatcher = scope.$watch(
+                (scope) => _(scope.WorldMap.sectors).map((s) => s.name).compact().join(","),
+                (newVal, oldVal, scope) => {
+                    getMissingRoomObjects(scope);
+                    updateMapView();
+                },
+            );
+        };
 
-    ScreepsAdapter.onViewChange((triggerName) => {
-      if (triggerName === 'worldMapEntered') {
-        initializeWatcher();
-      }
-    });
-  }
-  // TODO: Fix highlighting of good candidate rooms for expansion
-  // extendMapStats();
+        ScreepsAdapter.onViewChange((triggerName) => {
+            if (triggerName === "worldMapEntered") {
+                initializeWatcher();
+            }
+        });
+    }
+    // TODO: Fix highlighting of good candidate rooms for expansion
+    // extendMapStats();
 
-  /**
+    /**
    * Add custom stats to profile pages
    */
-  function addCustomStats() {
+    function addCustomStats() {
     // Wait for relevant views/scopes to be ready
-    const targetElem = angular.element('.row.profile-stats');
-    const targetScope = targetElem && targetElem.scope();
-    if (!targetScope) {
-      setTimeout(addCustomStats, 50);
-      return;
-    }
+        const targetElem = angular.element(".row.profile-stats");
+        const targetScope = targetElem && targetElem.scope();
+        if (!targetScope) {
+            setTimeout(addCustomStats, 50);
+            return;
+        }
 
-    // Display energy consumption from power processing
-    addCustomStat(
-      'Power energy<br />consumed',
-      'powerEnConsumed',
-      'color: #eee;',
-      // TODO: Use roomScope.Room.Constants.POWER_SPAWN_ENERGY_RATIO instead of hard-coding
-      (scope) => scope.ProfileStats.stats.powerProcessed * 50,
-      targetElem,
-      targetScope,
-    );
+        // Display energy consumption from power processing
+        addCustomStat(
+            "Power energy<br />consumed",
+            "powerEnConsumed",
+            "color: #eee;",
+            // TODO: Use roomScope.Room.Constants.POWER_SPAWN_ENERGY_RATIO instead of hard-coding
+            (scope) => scope.ProfileStats.stats.powerProcessed * 50,
+            targetElem,
+            targetScope,
+        );
 
-    // Display total energy consumption from known stats
-    // (excludes energy spent on boosts)
-    addCustomStat(
-      'Total energy<br />consumed',
-      'totalEnConsumed',
-      'color: #eee;',
-      (scope) => {
-        const stats = scope.ProfileStats.stats;
-        return (
-          stats.energyControl +
+        // Display total energy consumption from known stats
+        // (excludes energy spent on boosts)
+        addCustomStat(
+            "Total energy<br />consumed",
+            "totalEnConsumed",
+            "color: #eee;",
+            (scope) => {
+                const stats = scope.ProfileStats.stats;
+                return (
+                    stats.energyControl +
           stats.energyConstruction +
           stats.energyCreeps +
           // TODO: Use roomScope.Room.Constants.POWER_SPAWN_ENERGY_RATIO instead of hard-coding
           (stats.powerProcessed * 50));
-      },
-      targetElem,
-      targetScope,
-    );
-  }
-
-  function addCustomStat(titleHtml, clsSuffix, valStyle, fn, targetElem, scope) {
-    // Don't add multiple copies to the same page
-    if (targetElem.find(`.statCol-${clsSuffix}`).length) {
-      return;
+            },
+            targetElem,
+            targetScope,
+        );
     }
 
-    // Append stat element to the end of the grid
-    const elt = angular.element(`
+    function addCustomStat(titleHtml, clsSuffix, valStyle, fn, targetElem, scope) {
+    // Don't add multiple copies to the same page
+        if (targetElem.find(`.statCol-${clsSuffix}`).length) {
+            return;
+        }
+
+        // Append stat element to the end of the grid
+        const elt = angular.element(`
       <div class="col-xs-2 statCol-${clsSuffix}">
         <div class="stat-${clsSuffix}">
           <div class="profile-stat-title">${titleHtml}</div>
@@ -1184,52 +1173,52 @@ ScreepsAdapter.ready(() => {
         </div>
       </div>
     `);
-    targetElem.append(elt);
+        targetElem.append(elt);
 
-    // Update stat via $watch to avoid issues related to multiple template $compile calls
-    // (i.e. when switching to a different profile, custom stat elements either don't show up
-    // or the templates are rendered as plaintext)
-    scope.$watch(
-      fn,
-      (newVal, prevVal, scope) => {
-        targetElem.find(`.statCol-${clsSuffix} .profile-stat-value`)[0].innerHTML = formatStat(newVal);
-      },
-    );
-  }
+        // Update stat via $watch to avoid issues related to multiple template $compile calls
+        // (i.e. when switching to a different profile, custom stat elements either don't show up
+        // or the templates are rendered as plaintext)
+        scope.$watch(
+            fn,
+            (newVal, _prevVal, _scope) => {
+                targetElem.find(`.statCol-${clsSuffix} .profile-stat-value`)[0].innerHTML = formatStat(newVal);
+            },
+        );
+    }
 
-  function formatStat(stat) {
+    function formatStat(stat) {
     // Display missing/empty stats in same format as original stats
-    stat ||= 0;
-    if (!stat) {
-      return stat;
-    }
+        stat ||= 0;
+        if (!stat) {
+            return stat;
+        }
 
-    let suffix = '';
-    let factor = 1;
-    if (stat >= 1_000_000_000_000) {
-      suffix = 'T';
-      factor = 1_000_000_000_000;
-    } else if (stat >= 1_000_000_000) {
-      suffix = 'B';
-      factor = 1_000_000_000;
-    } else if (stat >= 1_000_000) {
-      suffix = 'M';
-      factor = 1_000_000;
-    } else if (stat >= 1_000) {
-      suffix = 'K';
-      factor = 1_000;
-    }
+        let suffix = "";
+        let factor = 1;
+        if (stat >= 1_000_000_000_000) {
+            suffix = "T";
+            factor = 1_000_000_000_000;
+        } else if (stat >= 1_000_000_000) {
+            suffix = "B";
+            factor = 1_000_000_000;
+        } else if (stat >= 1_000_000) {
+            suffix = "M";
+            factor = 1_000_000;
+        } else if (stat >= 1_000) {
+            suffix = "K";
+            factor = 1_000;
+        }
 
-    stat /= factor;
-    return `${stat.toPrecision(3)}${suffix}`;
-  };
+        stat /= factor;
+        return `${stat.toPrecision(3)}${suffix}`;
+    };
 
-  ScreepsAdapter.onHashChange((hash) => {
-    if (hash.startsWith('#!/profile/') || hash === '#!/overview') {
-      // Delete old stats element to avoid race conditions when navigating
-      // between profile and overview
-      angular.element('.row.profile-stats').remove();
-      setTimeout(addCustomStats, 0);
-    }
-  });
+    ScreepsAdapter.onHashChange((hash) => {
+        if (hash.startsWith("#!/profile/") || hash === "#!/overview") {
+            // Delete old stats element to avoid race conditions when navigating
+            // between profile and overview
+            angular.element(".row.profile-stats").remove();
+            setTimeout(addCustomStats, 0);
+        }
+    });
 });
