@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps alliance overlay
 // @namespace   https://screeps.com/
-// @version     0.3.0
+// @version     0.3.1
 // @author      James Cook
 // @description Overlay alliance relations on the world map
 // @match       https://screeps.com/a/*
@@ -112,8 +112,96 @@ function getAllianceLogo(allianceKey) {
     return loanBaseUrl + "/obj/" + logo;
 }
 
-/** @type {{ [allianceId: string]: { css: string, rgb: RGBColor } }} */
+/** @type {{ [allianceId: string]: { css: string, rgb: RGBColor, fromLogo?: boolean } }} */
 let colorMap = {};
+
+/** @type {Set<string>} */
+const allianceColorResolvers = new Set();
+
+/** @type {Record<string, { rgb: RGBColor, version?: string }> | null} */
+let allianceLogoColorCache = null;
+
+const ALLIANCE_LOGO_COLOR_CACHE_KEY = "alliances.logoColors";
+
+let allianceColorRefreshScheduled = false;
+
+/**
+ * @returns {Record<string, { rgb: RGBColor, version?: string }>}
+ */
+function loadAllianceLogoColorCache() {
+    if (!allianceLogoColorCache) {
+        allianceLogoColorCache = ScreepsAdapter.getSetting(
+            ALLIANCE_LOGO_COLOR_CACHE_KEY,
+            {},
+            { json: true },
+        );
+    }
+    return allianceLogoColorCache;
+}
+
+/**
+ * @param {string} logoId
+ * @param {{ rgb: RGBColor, version?: string }} entry
+ */
+function saveAllianceLogoColorCacheEntry(logoId, entry) {
+    const cache = loadAllianceLogoColorCache();
+    cache[logoId] = entry;
+    ScreepsAdapter.setSetting(ALLIANCE_LOGO_COLOR_CACHE_KEY, cache, { json: true });
+}
+
+/**
+ * @param {{ responseHeaders: string }} response
+ * @param {string} name
+ */
+function getResponseHeader(response, name) {
+    const match = response.responseHeaders.match(
+        new RegExp(`^${name}:\\s*(.+)$`, "im"),
+    );
+    return match?.[1]?.trim() ?? null;
+}
+
+/**
+ * @param {{ responseHeaders: string }} response
+ */
+function getLogoVersionFromResponse(response) {
+    return getResponseHeader(response, "etag")
+        || getResponseHeader(response, "last-modified");
+}
+
+/**
+ * @param {string} logoUrl
+ * @returns {Promise<string | null>}
+ */
+function fetchLogoVersion(logoUrl) {
+    return new Promise((resolve) => {
+        GM.xmlHttpRequest({
+            method: "HEAD",
+            url: logoUrl,
+            onload(response) {
+                if (response.status < 200 || response.status >= 300) {
+                    resolve(null);
+                    return;
+                }
+                resolve(getLogoVersionFromResponse(response));
+            },
+            onerror() {
+                resolve(null);
+            },
+        });
+    });
+}
+
+/**
+ * @param {string} allianceKey
+ * @returns {RGBColor | null}
+ */
+function getCachedLogoColor(allianceKey) {
+    const logoId = allianceData?.[allianceKey]?.logo;
+    if (!logoId) {
+        return null;
+    }
+    return loadAllianceLogoColorCache()[logoId]?.rgb ?? null;
+}
 
 /**
  * @param {number} h
@@ -143,24 +231,282 @@ function hslToRgb(h, s, l) {
 }
 
 /**
+ * @param {RGBColor} rgb
+ * @returns {{ css: string, rgb: RGBColor }}
+ */
+function makeAllianceColor(rgb) {
+    return {
+        css: `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`,
+        rgb,
+    };
+}
+
+/**
+ * @param {string} allianceKey
+ * @returns {{ css: string, rgb: RGBColor }}
+ */
+function makeFallbackAllianceColor(allianceKey) {
+    const alliance = allianceData?.[allianceKey];
+    const seed = alliance?.name || allianceKey;
+    const [hue, sat, lum] = randomColor({
+        hue: "random",
+        luminosity: "light",
+        seed,
+        format: "hslArray",
+    });
+    const lightness = lum / 2;
+    return {
+        css: `hsl(${hue},${sat}%,${lightness}%)`,
+        rgb: hslToRgb(hue, sat, lightness),
+    };
+}
+
+/**
+ * @param {number} channel
+ * @param {number} [bits=4]
+ */
+function quantizeChannel(channel, bits = 4) {
+    const shift = 8 - bits;
+    return (channel >> shift) << shift;
+}
+
+/**
+ * @param {number} r
+ * @param {number} g
+ * @param {number} b
+ * @param {number} a
+ */
+function shouldSkipPixel(r, g, b, a) {
+    if (a < 128) {
+        return true;
+    }
+    if (r > 240 && g > 240 && b > 240) {
+        return true;
+    }
+    if (r < 15 && g < 15 && b < 15) {
+        return true;
+    }
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return max - min < 20;
+}
+
+/**
+ * @param {Uint8ClampedArray} data
+ * @returns {RGBColor | null}
+ */
+function dominantColorFromImageData(data) {
+    /** @type {Map<string, number>} */
+    const counts = new Map();
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        if (shouldSkipPixel(r, g, b, a)) {
+            continue;
+        }
+        const key = `${quantizeChannel(r)},${quantizeChannel(g)},${quantizeChannel(b)}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+    }
+
+    let bestKey = null;
+    let bestCount = 0;
+    for (const [key, count] of counts) {
+        if (count > bestCount) {
+            bestCount = count;
+            bestKey = key;
+        }
+    }
+
+    if (!bestKey) {
+        return null;
+    }
+
+    return /** @type {RGBColor} */ (bestKey.split(",").map(Number));
+}
+
+/**
+ * @param {string} objectUrl
+ * @returns {Promise<RGBColor | null>}
+ */
+function extractDominantColorFromObjectUrl(objectUrl) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const size = 64;
+                const canvas = document.createElement("canvas");
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                    resolve(null);
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, size, size);
+                const data = ctx.getImageData(0, 0, size, size).data;
+                resolve(dominantColorFromImageData(data));
+            } catch {
+                resolve(null);
+            }
+        };
+        img.onerror = () => resolve(null);
+        img.src = objectUrl;
+    });
+}
+
+/**
+ * @param {string} logoUrl
+ * @returns {Promise<{ rgb: RGBColor, version: string | null } | null>}
+ */
+function fetchAllianceLogoColor(logoUrl) {
+    return new Promise((resolve) => {
+        GM.xmlHttpRequest({
+            method: "GET",
+            url: logoUrl,
+            responseType: "blob",
+            async onload(response) {
+                if (response.status < 200 || response.status >= 300) {
+                    resolve(null);
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(response.response);
+                try {
+                    const rgb = await extractDominantColorFromObjectUrl(objectUrl);
+                    if (!rgb) {
+                        resolve(null);
+                        return;
+                    }
+                    resolve({
+                        rgb,
+                        version: getLogoVersionFromResponse(response),
+                    });
+                } finally {
+                    URL.revokeObjectURL(objectUrl);
+                }
+            },
+            onerror() {
+                resolve(null);
+            },
+        });
+    });
+}
+
+/**
+ * @param {string} allianceKey
+ * @param {RGBColor} rgb
+ */
+function setAllianceLogoColor(allianceKey, rgb) {
+    const previous = colorMap[allianceKey];
+    const next = { ...makeAllianceColor(rgb), fromLogo: true };
+    const unchanged = previous?.fromLogo
+        && previous.rgb[0] === next.rgb[0]
+        && previous.rgb[1] === next.rgb[1]
+        && previous.rgb[2] === next.rgb[2];
+    colorMap[allianceKey] = next;
+    applyAllianceColorStyle(allianceKey);
+    if (!unchanged) {
+        scheduleAllianceColorRefresh();
+    }
+}
+
+/**
+ * @param {string} allianceKey
+ */
+function applyAllianceColorStyle(allianceKey) {
+    const color = colorMap[allianceKey];
+    if (!color) {
+        return;
+    }
+    DomHelper.addStyle(".alliance-" + allianceKey + " { background-color: " + color.css + " }");
+}
+
+function scheduleAllianceColorRefresh() {
+    if (allianceColorRefreshScheduled) {
+        return;
+    }
+    allianceColorRefreshScheduled = true;
+    setTimeout(() => {
+        allianceColorRefreshScheduled = false;
+        recalculateAllianceOverlay();
+        ScreepsAdapter.AlphaMap?.refresh();
+    }, 100);
+}
+
+/**
+ * @param {string} allianceKey
+ */
+async function resolveAllianceColorFromLogo(allianceKey) {
+    const logoUrl = getAllianceLogo(allianceKey);
+    const logoId = allianceData?.[allianceKey]?.logo;
+    if (!logoUrl || !logoId) {
+        return;
+    }
+
+    const cached = loadAllianceLogoColorCache()[logoId];
+    if (cached?.rgb) {
+        setAllianceLogoColor(allianceKey, cached.rgb);
+    }
+
+    const version = await fetchLogoVersion(logoUrl);
+    if (cached?.rgb && version && cached.version === version) {
+        return;
+    }
+    if (cached?.rgb && !version) {
+        return;
+    }
+
+    const result = await fetchAllianceLogoColor(logoUrl);
+    if (!result?.rgb) {
+        return;
+    }
+
+    saveAllianceLogoColorCacheEntry(logoId, {
+        rgb: result.rgb,
+        version: version || result.version || undefined,
+    });
+    setAllianceLogoColor(allianceKey, result.rgb);
+}
+
+/**
+ * @param {string} allianceKey
+ */
+function ensureAllianceColorResolved(allianceKey) {
+    if (colorMap[allianceKey]?.fromLogo || allianceColorResolvers.has(allianceKey)) {
+        return;
+    }
+
+    allianceColorResolvers.add(allianceKey);
+    resolveAllianceColorFromLogo(allianceKey).finally(() => {
+        allianceColorResolvers.delete(allianceKey);
+    });
+}
+
+function ensureAllAllianceColors() {
+    if (!allianceData) {
+        return;
+    }
+    for (const allianceKey of Object.keys(allianceData)) {
+        ensureAllianceColorResolved(allianceKey);
+    }
+}
+
+/**
  * @param {string} allianceKey
  * @returns {{ css: string, rgb: RGBColor }}
  */
 function getAllianceColor(allianceKey) {
     if (!colorMap[allianceKey]) {
-        const alliance = allianceData?.[allianceKey];
-        const seed = alliance?.name || allianceKey;
-        const [hue, sat, lum] = randomColor({
-            hue: "random",
-            luminosity: "light",
-            seed,
-            format: "hslArray",
-        });
-        const lightness = lum / 2;
-        colorMap[allianceKey] = {
-            css: `hsl(${hue},${sat}%,${lightness}%)`,
-            rgb: hslToRgb(hue, sat, lightness),
-        };
+        const cachedRgb = getCachedLogoColor(allianceKey);
+        if (cachedRgb) {
+            colorMap[allianceKey] = { ...makeAllianceColor(cachedRgb), fromLogo: true };
+        } else {
+            colorMap[allianceKey] = makeFallbackAllianceColor(allianceKey);
+        }
+        ensureAllianceColorResolved(allianceKey);
     }
     return colorMap[allianceKey];
 }
@@ -296,6 +642,7 @@ function ensureAllianceData(callback) {
             }
 
             console.log("Alliance data loaded from LOAN.");
+            ensureAllAllianceColors();
             if (callback) callback();
         }
     });
