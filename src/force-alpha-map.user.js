@@ -6,7 +6,7 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost/(*)/*
 // @grant       none
-// @version     0.0.5
+// @version     0.0.6
 // @author      -
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
@@ -21,17 +21,43 @@
     }
 
     /**
-     * Alpha map preference toggles live in localStorage; pos/scale/display stay in the URL.
+     * Alpha map preference toggles live in localStorage; pos stays required in the URL.
+     * scale/display are kept in the URL when present, otherwise restored from AlphaMap settings
+     * so room → map round-trips keep the last selected layer/zoom.
      * @param {string} [pos]
      */
     function alphaMapUrl(pos) {
         const base = ScreepsAdapter.$routeSegment.getSegmentUrl("top.map2shard");
-        if (!pos) {
-            return base;
-        }
         const query = new URLSearchParams();
-        query.set("pos", pos);
-        return `${base}?${query.toString()}`;
+        const AlphaMap = ScreepsAdapter.AlphaMap;
+
+        const hash = window.location.hash;
+        const queryLoc = hash.indexOf("?");
+        /** @type {URLSearchParams | undefined} */
+        let current;
+        if (queryLoc !== -1) {
+            current = new URLSearchParams(hash.substring(queryLoc + 1));
+            if (!pos) {
+                pos = current.get("pos") ?? undefined;
+            }
+        }
+
+        if (pos) {
+            query.set("pos", pos);
+        }
+
+        query.set(
+            "display",
+            current?.get("display") ?? AlphaMap.getSetting("display", AlphaMap.DEFAULT_DISPLAY),
+        );
+
+        const scale = current?.get("scale") ?? AlphaMap.getSetting("scale");
+        if (scale !== undefined && scale !== "") {
+            query.set("scale", String(scale));
+        }
+
+        const qs = query.toString();
+        return qs ? `${base}?${qs}` : base;
     }
 
     async function overrideRoom() {

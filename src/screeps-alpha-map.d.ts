@@ -165,6 +165,8 @@ declare namespace AlphaMap {
         isUnitsVisible?: boolean;
         hideUnits?(): void;
         showUnits?(): void;
+        onChangeDisplayType?(type: string): void;
+        onChangeScalePercent?(percent: number): void;
         /** @internal stock client route sync; patched to remove settings keys */
         _updateRouteData?(data: string[], queryParams?: Record<string, unknown>): void;
         /** @internal original method */
@@ -174,6 +176,7 @@ declare namespace AlphaMap {
         _router?: { navigate(commands: unknown[], extras?: Record<string, unknown>): void };
         settingsForm?: {
             value?: { shard?: string; display?: string };
+            patchValue?(value: Record<string, unknown>, options?: { emitEvent?: boolean }): void;
             controls?: {
                 shard?: { value?: string };
                 display?: { value?: string; valueChanges: Observable<string> };
@@ -209,6 +212,8 @@ declare namespace AlphaMap {
             visual: string;
             decorations: string;
         };
+        /** Stock default display layer id (`owner0`); not tied to picker sort order. */
+        DEFAULT_DISPLAY: DisplayLayerId;
         COLORS: Record<string, RGBColor> & Partial<Record<ObjectType, RGBColor>>;
 
         // --- Component accessors ---

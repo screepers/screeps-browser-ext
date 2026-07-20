@@ -36,6 +36,20 @@
         decorations: "decorations",
     };
 
+    /**
+     * Stock default display layer (`DISPLAY_OPTIONS[1]` before any custom options/sort).
+     * Do not use array index after sorting the picker list.
+     */
+    AlphaMap.DEFAULT_DISPLAY = "owner0";
+
+    /**
+     * @param {unknown} value
+     * @returns {boolean}
+     */
+    function hasQueryValue(value) {
+        return value !== null && value !== undefined && value !== "";
+    }
+
     /** From Screeps client utils.js — default colors for map object types. */
     AlphaMap.COLORS = {
         "2": [255, 150, 0],
@@ -688,6 +702,28 @@
             for (const key of SETTINGS_QUERY_KEYS) {
                 delete next[key];
             }
+
+            // Keep display/scale across room ↔ map (URL is wiped on room views).
+            const displaySource = hasQueryValue(queryParams.display)
+                ? queryParams.display
+                : hasQueryValue(next.display)
+                    ? next.display
+                    : AlphaMap.getSetting("display", AlphaMap.DEFAULT_DISPLAY);
+            next.display = displaySource;
+            AlphaMap.setSetting("display", next.display);
+
+            if (hasQueryValue(queryParams.scale)) {
+                next.scale = queryParams.scale;
+                AlphaMap.setSetting("scale", next.scale);
+            } else if (!hasQueryValue(next.scale)) {
+                const savedScale = AlphaMap.getSetting("scale");
+                if (savedScale !== undefined) {
+                    next.scale = savedScale;
+                }
+            } else {
+                AlphaMap.setSetting("scale", next.scale);
+            }
+
             this._queryParams = next;
 
             // Preference-only updates are applied above; do not navigate or the
@@ -711,8 +747,10 @@
 
     /**
      * Restore preference toggles from localStorage (stock client used URL query params).
+     * Also re-apply saved display/scale when the URL lacks them (e.g. after a room view).
      */
     function restoreMapSettings() {
+        const base = AlphaMap.getBaseComponent();
         const mapContainer = AlphaMap.getMapContainer();
         if (!mapContainer) {
             return;
@@ -721,6 +759,33 @@
         mapContainer.toggleLayer(AlphaMap.LAYERS.units, AlphaMap.getSetting("units", true));
         mapContainer.toggleLayer(AlphaMap.LAYERS.visual, AlphaMap.getSetting("visual", true));
         mapContainer.toggleLayer(AlphaMap.LAYERS.stats, AlphaMap.getSetting("claim", true));
+
+        if (!base) {
+            return;
+        }
+
+        const snapshot = base._route?.snapshot?.queryParams ?? {};
+        if (hasQueryValue(snapshot.display)) {
+            AlphaMap.setSetting("display", snapshot.display);
+        }
+        if (hasQueryValue(snapshot.scale)) {
+            AlphaMap.setSetting("scale", snapshot.scale);
+        }
+
+        const display = hasQueryValue(snapshot.display)
+            ? /** @type {string} */ (snapshot.display)
+            : AlphaMap.getSetting("display", AlphaMap.DEFAULT_DISPLAY);
+        if (!snapshot.display) {
+            base._displaySbj?.next?.(display);
+            base.onChangeDisplayType?.(display);
+            // emitEvent updates the URL via the stock display$ → _updateRouteData pipe
+            base.settingsForm?.patchValue?.({ display });
+        }
+
+        const savedScale = AlphaMap.getSetting("scale");
+        if (savedScale !== undefined && !hasQueryValue(snapshot.scale)) {
+            base.onChangeScalePercent?.(Number(savedScale));
+        }
     }
 
     // --- Preferences ---
