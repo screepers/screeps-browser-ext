@@ -165,6 +165,13 @@ declare namespace AlphaMap {
         isUnitsVisible?: boolean;
         hideUnits?(): void;
         showUnits?(): void;
+        /** @internal stock client route sync; patched to remove settings keys */
+        _updateRouteData?(data: string[], queryParams?: Record<string, unknown>): void;
+        /** @internal original method */
+        __updateRouteData?(data: string[], queryParams?: Record<string, unknown>): void;
+        _queryParams?: Record<string, unknown>;
+        _route?: { snapshot?: { queryParams?: Record<string, unknown> } };
+        _router?: { navigate(commands: unknown[], extras?: Record<string, unknown>): void };
         settingsForm?: {
             value?: { shard?: string; display?: string };
             controls?: {
