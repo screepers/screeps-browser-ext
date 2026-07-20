@@ -226,8 +226,8 @@ declare namespace AlphaMap {
 
         // --- Settings ---
 
-        getSetting(setting: string): any;
-        setSetting(setting: string, value: any): void;
+        getSetting<T = string>(name: string, defaultValue?: T): T;
+        setSetting(name: string, value: unknown): void;
 
         // --- Zoom ---
 

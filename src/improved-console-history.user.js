@@ -326,7 +326,7 @@ function parseInt(str, radix = 10) {
     ];
 
     function loadHistory() {
-        const history = /** @type {string[]} */ (ScreepsAdapter.getSetting(HISTORY_STORAGE_KEY, [], { json: true }));
+        const history = /** @type {string[]} */ (ScreepsAdapter.getSetting(HISTORY_STORAGE_KEY, []));
         console.warn(`History loaded, ${history.length} entries found`);
         return history;
     }
@@ -337,7 +337,7 @@ function parseInt(str, radix = 10) {
      */
     function saveHistory(history) {
         console.warn(`Saving history`, history);
-        ScreepsAdapter.setSetting(HISTORY_STORAGE_KEY, history, { json: true });
+        ScreepsAdapter.setSetting(HISTORY_STORAGE_KEY, history);
     }
 
     function clearHistory() {

@@ -133,7 +133,6 @@ function loadAllianceLogoColorCache() {
         allianceLogoColorCache = ScreepsAdapter.getSetting(
             ALLIANCE_LOGO_COLOR_CACHE_KEY,
             {},
-            { json: true },
         );
     }
     return allianceLogoColorCache;
@@ -146,7 +145,7 @@ function loadAllianceLogoColorCache() {
 function saveAllianceLogoColorCacheEntry(logoId, entry) {
     const cache = loadAllianceLogoColorCache();
     cache[logoId] = entry;
-    ScreepsAdapter.setSetting(ALLIANCE_LOGO_COLOR_CACHE_KEY, cache, { json: true });
+    ScreepsAdapter.setSetting(ALLIANCE_LOGO_COLOR_CACHE_KEY, cache);
 }
 
 /**

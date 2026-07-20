@@ -196,19 +196,22 @@
 
     /**
      * Get an alpha map setting.
+     *
+     * Booleans, numbers, objects, and arrays are coerced back automatically.
      * @param {string} setting
+     * @param {any} [defaultValue]
      */
-    AlphaMap.getSetting = function (setting) {
-        return ScreepsAdapter.getSetting(`screeps.alpha-map.${setting}`, null, { json: true });
+    AlphaMap.getSetting = function (setting, defaultValue) {
+        return ScreepsAdapter.getSetting(`screeps.alpha-map.${setting}`, defaultValue);
     };
 
     /**
-     * Save an alpha map setting.
+     * Save an alpha map setting. Objects, arrays, and numbers are JSON-serialized automatically.
      * @param {string} setting
      * @param {any} value
      */
     AlphaMap.setSetting = function (setting, value) {
-        ScreepsAdapter.setSetting(`screeps.alpha-map.${setting}`, value, { json: true });
+        ScreepsAdapter.setSetting(`screeps.alpha-map.${setting}`, value);
     };
 
     // --- Zoom ---
@@ -715,9 +718,9 @@
             return;
         }
 
-        mapContainer.toggleLayer(AlphaMap.LAYERS.units, AlphaMap.getSetting("units") ?? true);
-        mapContainer.toggleLayer(AlphaMap.LAYERS.visual, AlphaMap.getSetting("visual") ?? true);
-        mapContainer.toggleLayer(AlphaMap.LAYERS.stats, AlphaMap.getSetting("claim") ?? true);
+        mapContainer.toggleLayer(AlphaMap.LAYERS.units, AlphaMap.getSetting("units", true));
+        mapContainer.toggleLayer(AlphaMap.LAYERS.visual, AlphaMap.getSetting("visual", true));
+        mapContainer.toggleLayer(AlphaMap.LAYERS.stats, AlphaMap.getSetting("claim", true));
     }
 
     // --- Preferences ---
@@ -806,9 +809,9 @@
         }
         prefs.paramsForm.patchValue(
             {
-                units: AlphaMap.getSetting("units") ?? true,
-                visual: AlphaMap.getSetting("visual") ?? true,
-                claim: AlphaMap.getSetting("claim") ?? true,
+                units: AlphaMap.getSetting("units", true),
+                visual: AlphaMap.getSetting("visual", true),
+                claim: AlphaMap.getSetting("claim", true),
             },
             { emitEvent: false },
         );

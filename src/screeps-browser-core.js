@@ -787,31 +787,35 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
     }
 
     /**
-     * Read a persisted setting. Booleans stored as "true"/"false" are coerced back.
-     * Pass `{ json: true }` to parse/store structured values.
+     * Read a persisted setting. Booleans, numbers, objects, and arrays are coerced
+     * back from their stored string form automatically.
      * @param {string} name
      * @param {any} [defaultValue]
-     * @param {{ json?: boolean }} [options]
      */
-    ScreepsAdapter.getSetting = function(name, defaultValue, options) {
+    ScreepsAdapter.getSetting = function(name, defaultValue) {
         const raw = localStorage.getItem(buildSettingKey(name));
         if (raw === null) return defaultValue;
-        if (options?.json) {
-            return JSON.parse(raw);
-        }
         if (raw === "true") return true;
         if (raw === "false") return false;
+        if (raw.startsWith("{") || raw.startsWith("[") || /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(raw)) {
+            try {
+                return JSON.parse(raw);
+            } catch {
+                return defaultValue;
+            }
+        }
         return raw;
     };
 
     /**
-     * Persist a setting. Pass `{ json: true }` to JSON-serialize objects and arrays.
+     * Persist a setting. Objects, arrays, and numbers are JSON-serialized automatically.
      * @param {string} name
      * @param {any} value
-     * @param {{ json?: boolean }} [options]
      */
-    ScreepsAdapter.setSetting = function(name, value, options) {
-        const stored = options?.json ? JSON.stringify(value) : String(value);
+    ScreepsAdapter.setSetting = function(name, value) {
+        const stored = (value !== null && typeof value === "object") || typeof value === "number"
+            ? JSON.stringify(value)
+            : String(value);
         return localStorage.setItem(buildSettingKey(name), stored);
     };
 
