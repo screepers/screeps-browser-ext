@@ -18,9 +18,10 @@ declare namespace AlphaMap {
 
     type ObjectList = { [type in ObjectType]?: Coord[] };
 
-    type Observable<T> = {
-        subscribe(fn: (data: T) => void): { unsubscribe(): void };
-    };
+    /** Client uses RxJS 6 (Angular 8); keep ambient via import() like global.d.ts. */
+    type Observable<T> = import('rxjs').Observable<T>;
+    type Subject<T> = import('rxjs').Subject<T>;
+    type BehaviorSubject<T> = import('rxjs').BehaviorSubject<T>;
 
     /** Runtime sprite probed from a map layer container child. */
     interface MapSprite {
@@ -120,9 +121,9 @@ declare namespace AlphaMap {
         _toggleLayer?: (layer: string, state: boolean) => void;
         _alphaMapToggleLayerPatched?: boolean;
         /** @internal alpha map zoom (0.3–5) */
-        _scaleSbj?: { getValue(): number };
-        scale$?: { subscribe(fn: () => void): { unsubscribe(): void } };
-        bound$?: { subscribe(fn: (data: any) => void): { unsubscribe(): void } };
+        _scaleSbj?: BehaviorSubject<number>;
+        scale$?: Observable<number>;
+        bound$?: Observable<any>;
         bound?: MapBound;
         getBound?(): MapBound;
 
@@ -164,32 +165,22 @@ declare namespace AlphaMap {
         isUnitsVisible?: boolean;
         hideUnits?(): void;
         showUnits?(): void;
-        _unitsSbj?: { getValue(): boolean };
-        _unitsRestrictedSbj?: { getValue(): boolean };
-        _drawMapUsersSbj: {
-            asObservable(): { subscribe(fn: (data: any) => void): { unsubscribe(): void } };
-        };
-        _drawMapStatsSbj: {
-            asObservable(): { subscribe(fn: (data: any) => void): { unsubscribe(): void } };
-        };
         settingsForm?: {
             value?: { shard?: string; display?: string };
             controls?: {
                 shard?: { value?: string };
-                display?: { value?: string; valueChanges: { subscribe(fn: (value: any) => void): { unsubscribe(): void } } };
+                display?: { value?: string; valueChanges: Observable<string> };
             };
         };
-        _displaySbj?: {
-            asObservable(): { subscribe(fn: (data: any) => void): { unsubscribe(): void } };
-            getValue?(): string;
-            next?(value: string): void;
-        };
-        _updateStatsSbj: {
-            next(): void;
-        };
-        _destroySbj: {
-            subscribe(fn: () => void): { unsubscribe(): void };
-        };
+
+        _unitsSbj?: BehaviorSubject<boolean>;
+        _unitsRestrictedSbj?: BehaviorSubject<boolean>;
+        _scaleSbj?: BehaviorSubject<number>;
+        _drawMapUsersSbj: Subject<any>;
+        _drawMapStatsSbj: Subject<any>;
+        _displaySbj?: BehaviorSubject<string>;
+        _updateStatsSbj: Subject<void>;
+        _destroySbj: Subject<void>;
     }
 
     interface AlphaMapAdapter {
