@@ -11,9 +11,9 @@
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969191
-// @updateURL   https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1783796969191
-// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1783796969191
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1784569778657
+// @updateURL   https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1784569778657
+// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1784569778657
 // ==/UserScript==
 
 
@@ -330,7 +330,7 @@ function parseInt(str, radix = 10) {
     ];
 
     function loadHistory() {
-        const history = /** @type {string[]} */ (ScreepsAdapter.getSetting(HISTORY_STORAGE_KEY, [], { json: true }));
+        const history = /** @type {string[]} */ (ScreepsAdapter.getSetting(HISTORY_STORAGE_KEY, []));
         console.warn(`History loaded, ${history.length} entries found`);
         return history;
     }
@@ -341,7 +341,7 @@ function parseInt(str, radix = 10) {
      */
     function saveHistory(history) {
         console.warn(`Saving history`, history);
-        ScreepsAdapter.setSetting(HISTORY_STORAGE_KEY, history, { json: true });
+        ScreepsAdapter.setSetting(HISTORY_STORAGE_KEY, history);
     }
 
     function clearHistory() {

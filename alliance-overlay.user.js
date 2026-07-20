@@ -10,12 +10,12 @@
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @grant       GM.xmlHttpRequest
-// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1783796969187
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969187
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1783796969187
+// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1784569778654
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1784569778654
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1784569778654
 // @connect     www.leagueofautomatednations.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1783796969187
-// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1783796969187
+// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1784569778654
+// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1784569778654
 // ==/UserScript==
 
 
@@ -137,7 +137,6 @@ function loadAllianceLogoColorCache() {
         allianceLogoColorCache = ScreepsAdapter.getSetting(
             ALLIANCE_LOGO_COLOR_CACHE_KEY,
             {},
-            { json: true },
         );
     }
     return allianceLogoColorCache;
@@ -150,7 +149,7 @@ function loadAllianceLogoColorCache() {
 function saveAllianceLogoColorCacheEntry(logoId, entry) {
     const cache = loadAllianceLogoColorCache();
     cache[logoId] = entry;
-    ScreepsAdapter.setSetting(ALLIANCE_LOGO_COLOR_CACHE_KEY, cache, { json: true });
+    ScreepsAdapter.setSetting(ALLIANCE_LOGO_COLOR_CACHE_KEY, cache);
 }
 
 /**

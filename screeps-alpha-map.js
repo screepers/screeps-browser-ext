@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const VERSION = "0.1.0";
+    const VERSION = "0.1.1";
 
     if (!window.ScreepsAdapter) {
         throw new Error("screeps-alpha-map.js requires screeps-browser-core.js to be loaded first");
@@ -35,6 +35,20 @@
         visual: "visual",
         decorations: "decorations",
     };
+
+    /**
+     * Stock default display layer (`DISPLAY_OPTIONS[1]` before any custom options/sort).
+     * Do not use array index after sorting the picker list.
+     */
+    AlphaMap.DEFAULT_DISPLAY = "owner0";
+
+    /**
+     * @param {unknown} value
+     * @returns {boolean}
+     */
+    function hasQueryValue(value) {
+        return value !== null && value !== undefined && value !== "";
+    }
 
     /** From Screeps client utils.js — default colors for map object types. */
     AlphaMap.COLORS = {
@@ -196,19 +210,22 @@
 
     /**
      * Get an alpha map setting.
+     *
+     * Booleans, numbers, objects, and arrays are coerced back automatically.
      * @param {string} setting
+     * @param {any} [defaultValue]
      */
-    AlphaMap.getSetting = function (setting) {
-        return ScreepsAdapter.getSetting(`screeps.alpha-map.${setting}`, null, { json: true });
+    AlphaMap.getSetting = function (setting, defaultValue) {
+        return ScreepsAdapter.getSetting(`screeps.alpha-map.${setting}`, defaultValue);
     };
 
     /**
-     * Save an alpha map setting.
+     * Save an alpha map setting. Objects, arrays, and numbers are JSON-serialized automatically.
      * @param {string} setting
      * @param {any} value
      */
     AlphaMap.setSetting = function (setting, value) {
-        ScreepsAdapter.setSetting(`screeps.alpha-map.${setting}`, value, { json: true });
+        ScreepsAdapter.setSetting(`screeps.alpha-map.${setting}`, value);
     };
 
     // --- Zoom ---
@@ -576,7 +593,7 @@
     /**
      * Patch the map container's toggleLayer method to persist layer settings.
      */
-    function patchLayerSettings() {
+    function patchToggleLayer() {
         const mapContainer = AlphaMap.getMapContainer();
         if (!mapContainer || mapContainer._toggleLayer) {
             return;
@@ -596,6 +613,13 @@
             if (layer === AlphaMap.LAYERS.stats) {
                 AlphaMap.setSetting("claim", state);
             }
+            if (layer === AlphaMap.LAYERS.units) {
+                AlphaMap.setSetting("units", state);
+                const unitsSbj = AlphaMap.getBaseComponent()?._unitsSbj;
+                if (unitsSbj && unitsSbj.getValue() !== state) {
+                    unitsSbj.next(state);
+                }
+            }
             mapContainer._toggleLayer?.(layer, state);
         };
 
@@ -611,15 +635,157 @@
     }
 
     /**
-     * Restore the map's layer visibilities from saved settings.
+     * Stock preferences push units/claim/visual into `_updateRouteData` as if they
+     * were URL params. Drop them from the query string and apply via toggleLayer
+     * (persistence + units subject live there).
+     * @param {Record<string, unknown>} queryParams
      */
-    function restoreLayerSettings() {
+    function saveSettingsFromQuery(queryParams) {
+        /**
+         * Stock URL semantics: absent/`null` means on; only explicit false disables.
+         * @param {unknown} value
+         * @returns {boolean}
+         */
+        function isEnabled(value) {
+            return value !== false && value !== "false";
+        }
+
+        if ("units" in queryParams) {
+            AlphaMap.toggleLayer(AlphaMap.LAYERS.units, isEnabled(queryParams.units));
+        }
+        if ("claim" in queryParams) {
+            AlphaMap.toggleLayer(AlphaMap.LAYERS.stats, isEnabled(queryParams.claim));
+        }
+        if ("visual" in queryParams) {
+            AlphaMap.toggleLayer(AlphaMap.LAYERS.visual, isEnabled(queryParams.visual));
+        }
+    }
+
+    /** Stock preference keys that must not live in the alpha map URL. */
+    const SETTINGS_QUERY_KEYS = new Set(["units", "claim", "visual", "color", "decor"]);
+
+    /**
+     * @param {Record<string, unknown>} queryParams
+     * @returns {boolean}
+     */
+    function isSettingsOnlyUpdate(queryParams) {
+        const keys = Object.keys(queryParams);
+        return keys.length > 0 && keys.every((key) => SETTINGS_QUERY_KEYS.has(key));
+    }
+
+    /**
+     * Keep view settings out of the alpha map URL
+     */
+    function patchUpdateRouteData() {
+        const base = AlphaMap.getBaseComponent();
+        if (!base || base.__updateRouteData) {
+            return;
+        }
+
+        base.__updateRouteData = base._updateRouteData;
+
+        /**
+         * @param {string[]} data
+         * @param {Record<string, unknown>} [queryParams]
+         * @this {AlphaMap.BaseComponent}
+         */
+        base._updateRouteData = function (data, queryParams = {}) {
+            saveSettingsFromQuery(queryParams);
+
+            // Merge like stock, but drop preference/settings keys from the query string.
+            /** @type {Record<string, unknown>} */
+            const next = {
+                ...this._route?.snapshot?.queryParams,
+                ...this._queryParams,
+                ...queryParams,
+            };
+            for (const key of SETTINGS_QUERY_KEYS) {
+                delete next[key];
+            }
+
+            // Keep display/scale across room ↔ map (URL is wiped on room views).
+            const displaySource = hasQueryValue(queryParams.display)
+                ? queryParams.display
+                : hasQueryValue(next.display)
+                    ? next.display
+                    : AlphaMap.getSetting("display", AlphaMap.DEFAULT_DISPLAY);
+            next.display = displaySource;
+            AlphaMap.setSetting("display", next.display);
+
+            if (hasQueryValue(queryParams.scale)) {
+                next.scale = queryParams.scale;
+                AlphaMap.setSetting("scale", next.scale);
+            } else if (!hasQueryValue(next.scale)) {
+                const savedScale = AlphaMap.getSetting("scale");
+                if (savedScale !== undefined) {
+                    next.scale = savedScale;
+                }
+            } else {
+                AlphaMap.setSetting("scale", next.scale);
+            }
+
+            this._queryParams = next;
+
+            // Preference-only updates are applied above; do not navigate or the
+            // missing URL keys would re-emit stock defaults and clobber restore.
+            if (isSettingsOnlyUpdate(queryParams)) {
+                return;
+            }
+
+            setTimeout(() => {
+                this._router?.navigate(["..", ...data], {
+                    queryParams: this._queryParams,
+                    relativeTo: this._route,
+                    replaceUrl: true,
+                });
+                // Stock subscriptions treat missing units/claim/visual as defaults;
+                // re-assert localStorage after the queryParams emission.
+                setTimeout(() => restoreMapSettings(), 0);
+            });
+        };
+    }
+
+    /**
+     * Restore preference toggles from localStorage (stock client used URL query params).
+     * Also re-apply saved display/scale when the URL lacks them (e.g. after a room view).
+     */
+    function restoreMapSettings() {
+        const base = AlphaMap.getBaseComponent();
         const mapContainer = AlphaMap.getMapContainer();
         if (!mapContainer) {
             return;
         }
-        mapContainer.toggleLayer(AlphaMap.LAYERS.visual, AlphaMap.getSetting("visual") ?? true);
-        mapContainer.toggleLayer(AlphaMap.LAYERS.stats, AlphaMap.getSetting("claim") ?? true);
+
+        mapContainer.toggleLayer(AlphaMap.LAYERS.units, AlphaMap.getSetting("units", true));
+        mapContainer.toggleLayer(AlphaMap.LAYERS.visual, AlphaMap.getSetting("visual", true));
+        mapContainer.toggleLayer(AlphaMap.LAYERS.stats, AlphaMap.getSetting("claim", true));
+
+        if (!base) {
+            return;
+        }
+
+        const snapshot = base._route?.snapshot?.queryParams ?? {};
+        if (hasQueryValue(snapshot.display)) {
+            AlphaMap.setSetting("display", snapshot.display);
+        }
+        if (hasQueryValue(snapshot.scale)) {
+            AlphaMap.setSetting("scale", snapshot.scale);
+        }
+
+        const display = hasQueryValue(snapshot.display)
+            ? /** @type {string} */ (snapshot.display)
+            : AlphaMap.getSetting("display", AlphaMap.DEFAULT_DISPLAY);
+        if (!snapshot.display) {
+            base._displaySbj?.next?.(display);
+            base.onChangeDisplayType?.(display);
+            // emitEvent updates the URL via the stock display$ → _updateRouteData pipe
+            base.settingsForm?.patchValue?.({ display });
+        }
+
+        const savedScale = AlphaMap.getSetting("scale");
+        if (savedScale !== undefined && !hasQueryValue(snapshot.scale)) {
+            base.onChangeScalePercent?.(Number(savedScale));
+        }
     }
 
     // --- Preferences ---
@@ -657,6 +823,8 @@
             return;
         }
 
+        syncPreferencesFormFromSettings();
+
         const ngContentAttr = getPreferencesNgContentAttr(form);
 
         for (const pref of _preferenceCheckboxes) {
@@ -692,6 +860,29 @@
     }
 
     /**
+     * Stock preferences read units/claim/visual from the URL; point them at localStorage instead.
+     */
+    function syncPreferencesFormFromSettings() {
+        const el = document.querySelector("app-world-preferences");
+        if (!el) {
+            return;
+        }
+        // @ts-expect-error ng is injected by the Screeps client
+        const prefs = ng.probe(el)?.componentInstance;
+        if (!prefs?.paramsForm?.patchValue) {
+            return;
+        }
+        prefs.paramsForm.patchValue(
+            {
+                units: AlphaMap.getSetting("units", true),
+                visual: AlphaMap.getSetting("visual", true),
+                claim: AlphaMap.getSetting("claim", true),
+            },
+            { emitEvent: false },
+        );
+    }
+
+    /**
      * Patch the base component's showWorldPreferences method to inject custom alpha map settings.
      */
     function patchShowWorldPreferences() {
@@ -712,6 +903,18 @@
     // --- Lifecycle ---
 
     /**
+     * Install core alpha-map patches each time the view is active.
+     */
+    function installCorePatches() {
+        applyDisplayOptions();
+        ensureWiredLayerToggle();
+        patchToggleLayer();
+        patchUpdateRouteData();
+        restoreMapSettings();
+        patchShowWorldPreferences();
+    }
+
+    /**
      * Run callback each time the alpha map view is active. Do not retain map handles
      * from the callback — use AlphaMap getters at point of use instead.
      * @param {() => void | Promise<void>} callback
@@ -723,17 +926,14 @@
                     return;
                 }
                 await ScreepsAdapter.waitFor(() => !!AlphaMap.getMapComponent());
-
-                applyDisplayOptions();
-                ensureWiredLayerToggle();
-                patchLayerSettings();
-                restoreLayerSettings();
-                patchShowWorldPreferences();
-
                 await callback();
             });
         });
     };
+
+    AlphaMap.ready(() => {
+        installCorePatches();
+    });
 
     ScreepsAdapter.AlphaMap = AlphaMap;
 })();

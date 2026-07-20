@@ -6,24 +6,62 @@
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost/(*)/*
 // @grant       none
-// @version     0.0.4
+// @version     0.0.6
 // @author      -
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969190
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1783796969190
-// @updateURL   https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1783796969190
-// @downloadURL https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1783796969190
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1784569778656
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1784569778656
+// @updateURL   https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1784569778656
+// @downloadURL https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1784569778656
 // ==/UserScript==
 
 
 
 (() => {
-    const { AlphaMap } = ScreepsAdapter;
-
     function getCurrentRoom() {
         return angular.element(".room.ng-scope").scope()?.Room;
+    }
+
+    /**
+     * Alpha map preference toggles live in localStorage; pos stays required in the URL.
+     * scale/display are kept in the URL when present, otherwise restored from AlphaMap settings
+     * so room → map round-trips keep the last selected layer/zoom.
+     * @param {string} [pos]
+     */
+    function alphaMapUrl(pos) {
+        const base = ScreepsAdapter.$routeSegment.getSegmentUrl("top.map2shard");
+        const query = new URLSearchParams();
+        const AlphaMap = ScreepsAdapter.AlphaMap;
+
+        const hash = window.location.hash;
+        const queryLoc = hash.indexOf("?");
+        /** @type {URLSearchParams | undefined} */
+        let current;
+        if (queryLoc !== -1) {
+            current = new URLSearchParams(hash.substring(queryLoc + 1));
+            if (!pos) {
+                pos = current.get("pos") ?? undefined;
+            }
+        }
+
+        if (pos) {
+            query.set("pos", pos);
+        }
+
+        query.set(
+            "display",
+            current?.get("display") ?? AlphaMap.getSetting("display", AlphaMap.DEFAULT_DISPLAY),
+        );
+
+        const scale = current?.get("scale") ?? AlphaMap.getSetting("scale");
+        if (scale !== undefined && scale !== "") {
+            query.set("scale", String(scale));
+        }
+
+        const qs = query.toString();
+        return qs ? `${base}?${qs}` : base;
     }
 
     async function overrideRoom() {
@@ -42,15 +80,13 @@
         getCurrentRoom().goToMap = function (e) {
             e ??= /** @type {PointerEvent} */ (window.event);
             const { $routeSegment, $location } = ScreepsAdapter;
-            const roomCoords = ScreepsAdapter.MapUtils.roomNameToXY($routeSegment.$routeParams.room);
+            const room =
+                getCurrentRoom()?.roomName ||
+                $routeSegment.$routeParams.room;
+            const roomCoords = ScreepsAdapter.MapUtils.roomNameToXY(room);
+            const pos = `${roomCoords[0] + .5},${roomCoords[1] + .5}`;
+            const newUrl = alphaMapUrl(pos);
 
-            const query = new URLSearchParams();
-            query.set("pos", `${roomCoords[0] + .5},${roomCoords[1] + .5}`);
-            query.set("units", AlphaMap.getSetting("units") ?? true);
-            query.set("visual", AlphaMap.getSetting("visual") ?? true);
-            query.set("claim", AlphaMap.getSetting("claim") ?? true);
-
-            const newUrl = $routeSegment.getSegmentUrl("top.map2shard") + "?" + query.toString();
             if (e.ctrlKey || e.metaKey) {
                 const prefix = $location.$$absUrl.substring(0, $location.$$absUrl.indexOf("#!") + 2);
                 window.open(prefix + newUrl, "_blank");
@@ -67,9 +103,11 @@
             } else if (triggerName === "top.game-world-map") {
                 const hash = window.location.hash;
                 const queryLoc = hash.indexOf("?");
-                const queryStr = queryLoc !== -1 ? "?" + hash.substring(queryLoc) : "";
-                const url = ScreepsAdapter.$routeSegment.getSegmentUrl("top.map2shard") + queryStr;
-                ScreepsAdapter.$location.url(url);
+                let pos;
+                if (queryLoc !== -1) {
+                    pos = new URLSearchParams(hash.substring(queryLoc + 1)).get("pos") ?? undefined;
+                }
+                ScreepsAdapter.$location.url(alphaMapUrl(pos));
             }
         });
     });

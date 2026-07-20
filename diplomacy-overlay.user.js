@@ -10,10 +10,10 @@
 // @match       http://*.localhost/(*)/*
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969190
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1783796969190
-// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1783796969190
-// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1783796969190
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1784569778656
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1784569778656
+// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1784569778656
+// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1784569778656
 // ==/UserScript==
 
 

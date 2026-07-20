@@ -13,9 +13,9 @@
 // @match       http://*.localhost/(*)/*
 // @run-at      document-idle
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1783796969191
-// @updateURL   https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1783796969191
-// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1783796969191
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1784569778657
+// @updateURL   https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1784569778657
+// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1784569778657
 // ==/UserScript==
 
 
