@@ -50,7 +50,10 @@
         getCurrentRoom().goToMap = function (e) {
             e ??= /** @type {PointerEvent} */ (window.event);
             const { $routeSegment, $location } = ScreepsAdapter;
-            const roomCoords = ScreepsAdapter.MapUtils.roomNameToXY($routeSegment.$routeParams.room);
+            const room =
+                getCurrentRoom()?.roomName ||
+                $routeSegment.$routeParams.room;
+            const roomCoords = ScreepsAdapter.MapUtils.roomNameToXY(room);
             const pos = `${roomCoords[0] + .5},${roomCoords[1] + .5}`;
             const newUrl = alphaMapUrl(pos);
 
