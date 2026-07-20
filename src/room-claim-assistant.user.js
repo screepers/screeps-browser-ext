@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps room claim assistant
 // @namespace   https://screeps.com/
-// @version     0.2.0
+// @version     0.2.1
 // @author      James Cook
 // @description Assist with room claiming by showing claim stats on the map
 // @match       https://screeps.com/a/*
@@ -280,6 +280,9 @@ function claimRoomPixels(color) {
 }
 
 /**
+ * Shared claim textures are destroyed when the map layer is cleared/destroyed
+ * (e.g. enter a room, then return). Recreate if the cached texture is dead.
+ *
  * @param {string} state
  */
 function getClaimStateTexture(state) {
@@ -290,13 +293,18 @@ function getClaimStateTexture(state) {
         return undefined;
     }
 
-    if (!claimStateTextures[state]) {
-        claimStateTextures[state] = pixi.Texture.fromBuffer(
-            claimRoomPixels(color),
-            AlphaMap.ROOM_SIZE,
-            AlphaMap.ROOM_SIZE,
-        );
+    const cached = /** @type {{ baseTexture?: { valid?: boolean } } | undefined} */ (
+        claimStateTextures[state]
+    );
+    if (cached?.baseTexture?.valid) {
+        return cached;
     }
+
+    claimStateTextures[state] = pixi.Texture.fromBuffer(
+        claimRoomPixels(color),
+        AlphaMap.ROOM_SIZE,
+        AlphaMap.ROOM_SIZE,
+    );
 
     return claimStateTextures[state];
 }
@@ -307,7 +315,26 @@ function getClaimStateTexture(state) {
  */
 function destroyClaimRoomSprite(layer, room) {
     if (layer.hasRoom(room)) {
-        layer.destroyRoomSprite(room);
+        // Keep shared claimStateTextures — Layer.clear()/destroy() use destroy(true).
+        layer.destroyRoomSprite(room, false);
+    }
+}
+
+/**
+ * Clear room sprites without destroying shared claim state textures.
+ * Layer.clear() calls destroy(true), which would invalidate claimStateTextures.
+ *
+ * @param {AlphaMap.Layer} layer
+ */
+function clearClaimAssistSprites(layer) {
+    const cache = /** @type {{ _cache?: Record<string, unknown> }} */ (layer)._cache;
+    if (!cache) {
+        layer.clear();
+        return;
+    }
+
+    for (const room of Object.keys(cache)) {
+        destroyClaimRoomSprite(layer, room);
     }
 }
 
@@ -336,9 +363,11 @@ function claimAssistActive() {
  * @param {AlphaMap.Layer | undefined} layer
  */
 function clearClaimAssistLayerState(layer) {
-    const claimLayer = /** @type {{ _clearRoomSockets?(): void, clear?(): void } | undefined} */ (layer);
+    const claimLayer = /** @type {{ _clearRoomSockets?(): void } | undefined} */ (layer);
     claimLayer?._clearRoomSockets?.();
-    claimLayer?.clear?.();
+    if (layer) {
+        clearClaimAssistSprites(layer);
+    }
 }
 
 function syncClaimAssistLayer() {
@@ -413,7 +442,7 @@ function installAlphaMapClaimLayer() {
                 this._clearRoomSockets();
                 this._statsByRoom.clear();
                 this._countsByRoom.clear();
-                this.clear();
+                clearClaimAssistSprites(this);
             }
 
             /**
