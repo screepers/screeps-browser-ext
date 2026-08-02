@@ -78,9 +78,13 @@ declare var ScreepsAdapter: {
 
     /**
      * Execute a callback when the selected object changes in a room.
-     * @param {({ object: unknown })} callback
+     * By default waits until the inspector panel DOM is ready; pass
+     * `{ immediate: true }` to run during the selection digest instead.
      */
-    onSelectionChange(callback: (object: unknown) => void): void;
+    onSelectionChange(
+        callback: (param: { object: unknown | null }) => void,
+        options?: { immediate?: boolean }
+    ): void;
 
     /**
      * Display a popup dialog

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps Birthday viewer
 // @namespace   https://screeps.com
-// @version     0.1.2
+// @version     0.1.3
 // @description This adds a creep's birthday to the inspector
 // @author      Traxus, various
 // @run-at      document-ready
@@ -31,30 +31,46 @@ function log(...args) {
 function formatDate(d) {
     return ("0" + d.getUTCHours()).slice(-2)+":"+("0" + d.getUTCMinutes()).slice(-2)+":"+("0" + d.getUTCSeconds()).slice(-2) + " " +
         ("0" + (d.getUTCMonth()+1)).slice(-2)+"/"+("0" + d.getUTCDate()).slice(-2)+"/"+d.getUTCFullYear() + " UTC";
-};
+}
 
-function showBdayInternal() {
-    let gameEl = angular.element($("section.game"));
-    let roomEl = angular.element($("section.room"));
-    let $rootScope = gameEl.injector().get("$rootScope");
-    let $compile = gameEl.injector().get("$compile");
-    let target = $(".object-properties .aside-block-content")[0];
-    let elem = $('<div class="ng-binding ng-scope"><label>BirthDate: </label>' + formatDate(new Date(parseInt(roomEl.scope().Room.selectedObject._id.substr(0,8), 16)*1000)) + "</div>");
-    $compile(elem)($rootScope);
-    if(target.children.length > 1) {
-        elem.insertBefore(target.children[2]);
+/**
+ * Derive a creation timestamp from a Mongo-style ObjectId.
+ * @param {string} id
+ */
+function birthDateFromId(id) {
+    if (typeof id !== "string" || id.length < 8) return null;
+    const ms = parseInt(id.substr(0, 8), 16) * 1000;
+    if (!Number.isFinite(ms)) return null;
+    return new Date(ms);
+}
+
+/**
+ * @param {{ _id?: string } | null | undefined} obj
+ */
+function injectBdayLabel(obj) {
+    if (!obj?._id) return;
+
+    const birthDate = birthDateFromId(obj._id);
+    if (!birthDate) return;
+
+    const target = $(".object-properties .aside-block-content")[0];
+    if (!target) return;
+
+    const elem = $('<div class="ng-binding ng-scope birthday-viewer"><label>Born: </label>' + formatDate(birthDate) + "</div>");
+    const insertBefore = target.children.length > 1
+        ? target.children[2]
+        : target.children[0]?.children?.[2];
+
+    if (insertBefore) {
+        elem.insertBefore(insertBefore);
     } else {
-        elem.insertBefore(target.children[0].children[2]);
+        $(target).prepend(elem);
     }
 }
 
 // Entry point
 ScreepsAdapter.ready(() => {
-    ScreepsAdapter.onViewChange((view) => {
-        ScreepsAdapter.$timeout(() => {
-            if (view === "view" && $(".object-properties .aside-block-content")[0]) {
-                showBdayInternal();
-            }
-        }, 100);
+    ScreepsAdapter.onSelectionChange(({ object }) => {
+        injectBdayLabel(/** @type {{ _id?: string } | null} */ (object));
     });
 });

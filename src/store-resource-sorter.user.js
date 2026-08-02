@@ -5,13 +5,12 @@
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @match       http://*.localhost/(*)/*
-// @icon
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @grant       none
-// @version     0.1.1
+// @version     0.1.2
 // @author      -
 // @description Better sorting for the resource list in the inspector
 // @run-at      document-ready
-// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
 // ==/UserScript==
 
@@ -19,7 +18,7 @@
 const myOrder = ["energy","power","ops","O","H","Z","L","U","K","X","G","OH","ZK","UL","KH","KH2O","XKH2O","KO","KHO2","XKHO2","UH","UH2O","XUH2O","UO","UHO2","XUHO2","LH","LH2O","XLH2O","LO","LHO2","XLHO2","ZH","ZH2O","XZH2O","ZO","ZHO2","XZHO2","GH","GH2O","XGH2O","GO","GHO2","XGHO2","battery","oxidant","reductant","zynthium_bar","lemergium_bar","utrium_bar","keanium_bar","purifier","ghodium_melt","composite","crystal","liquid"];
 
 /**
- * @param {{ store: Record<string, number>}} obj
+ * @param {{ store: Record<string, number>} | null | undefined} obj
  */
 function sortResources(obj) {
     if (!obj?.store) return;
@@ -39,10 +38,12 @@ function sortResources(obj) {
     obj.store = newStore;
 }
 
-ScreepsAdapter.ready(async () => {
+ScreepsAdapter.ready(() => {
     console.warn("Store Resources Sorter: Loaded");
 
-    ScreepsAdapter.onSelectionChange(async (obj) => {
-        sortResources(/** @type {{ object: { store: Record<string, number> } }} */ (obj)?.object);
-    });
+    // Must run during the selection digest, before the inspector renders store keys.
+    ScreepsAdapter.onSelectionChange(({ object }) => {
+        sortResources(/** @type {{ store: Record<string, number> } | null} */ (object));
+    }, { immediate: true });
 });
+
