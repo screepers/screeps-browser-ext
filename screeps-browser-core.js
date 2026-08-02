@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const VERSION = "0.5.0";
+    const VERSION = "0.6.0";
 
     /**
      * @param {string} a
@@ -324,17 +324,103 @@
     }
 
     /**
-     * @param {any} object
+     * @typedef {{ callback: (param: { object: any }) => void, immediate: boolean }} SelectionCallbackEntry
      */
-    function notifySelectionWatchers(object) {
+
+    /** @type {MutationObserver | null} */
+    let selectionDomObserver = null;
+    /** @type {ReturnType<typeof setTimeout> | null} */
+    let selectionDomTimeout = null;
+    let awaitingSelectionDom = false;
+    /** @type {any} */
+    let pendingSelectionObject = null;
+
+    function clearSelectionDomWait() {
+        awaitingSelectionDom = false;
+        pendingSelectionObject = null;
+        if (selectionDomObserver) {
+            selectionDomObserver.disconnect();
+            selectionDomObserver = null;
+        }
+        if (selectionDomTimeout !== null) {
+            clearTimeout(selectionDomTimeout);
+            selectionDomTimeout = null;
+        }
+    }
+
+    function isObjectPropertiesPanelReady() {
+        const panel = document.querySelector(".object-properties .aside-block-content");
+        if (!panel) return false;
+        // Enough rows that injectors can place content after ID/owner (or equivalent).
+        if (panel.children.length > 1) return !!panel.children[2];
+        return !!panel.children[0]?.children?.[2];
+    }
+
+    /**
+     * @param {any} object
+     * @param {"immediate" | "deferred" | "all"} [which="all"]
+     */
+    function notifySelectionWatchers(object, which = "all") {
         const rootScope = angular.element(document.body).scope();
-        for (const callback of rootScope.objectSelectionCallbacks) {
+        for (const entry of /** @type {SelectionCallbackEntry[]} */ (rootScope.objectSelectionCallbacks)) {
+            if (which === "immediate" && !entry.immediate) continue;
+            if (which === "deferred" && entry.immediate) continue;
             try {
-                callback({ object });
+                entry.callback({ object });
             } catch (e) {
                 console.log(e);
             }
         }
+    }
+
+    function tryFlushDeferredSelection() {
+        if (!awaitingSelectionDom || !isObjectPropertiesPanelReady()) return false;
+        const object = pendingSelectionObject;
+        clearSelectionDomWait();
+        notifySelectionWatchers(object, "deferred");
+        return true;
+    }
+
+    /**
+     * @param {any} object
+     */
+    function scheduleDeferredSelection(object) {
+        clearSelectionDomWait();
+        awaitingSelectionDom = true;
+        pendingSelectionObject = object;
+
+        if (tryFlushDeferredSelection()) return;
+
+        const roomEl = document.querySelector("section.room");
+        if (roomEl) {
+            selectionDomObserver = new MutationObserver(() => {
+                tryFlushDeferredSelection();
+            });
+            selectionDomObserver.observe(roomEl, { childList: true, subtree: true });
+        }
+
+        selectionDomTimeout = setTimeout(() => {
+            if (!awaitingSelectionDom) return;
+            const pending = pendingSelectionObject;
+            clearSelectionDomWait();
+            // Panel never appeared (e.g. not in view action) — still notify so listeners aren't stuck.
+            notifySelectionWatchers(pending, "deferred");
+        }, 2000);
+    }
+
+    /**
+     * @param {any} newObj
+     */
+    function handleSelectionChange(newObj) {
+        notifySelectionWatchers(newObj, "immediate");
+
+        if (!newObj) {
+            clearSelectionDomWait();
+            notifySelectionWatchers(null, "deferred");
+            return;
+        }
+
+        scheduleDeferredSelection(newObj);
     }
 
     /** @type {(() => void) | null} */
@@ -342,9 +428,16 @@
 
     /**
      * Execute a callback when the selected object changes in a room.
-     * @param {({ object: any})} callback
+     *
+     * By default, the callback runs after Angular has updated the inspector DOM
+     * (`.object-properties .aside-block-content`), so UI injectors can touch the
+     * panel without their own observers. Pass `{ immediate: true }` to run during
+     * the selection digest instead (needed when mutating the object before render).
+     *
+     * @param {(param: { object: any }) => void} callback
+     * @param {{ immediate?: boolean }} [options]
      */
-    ScreepsAdapter.onSelectionChange = function(callback) {
+    ScreepsAdapter.onSelectionChange = function(callback, options) {
         waitForAngular().then(() => {
             const rootScope = angular.element(document.body).scope();
             if (!rootScope.objectSelectionCallbacks) {
@@ -352,19 +445,23 @@
                 ScreepsAdapter.onViewChange((viewName, oldView) => {
                     const roomViews = ["top.game-room", "top.sim-custom", "top.sim-survival", "top.sim-tutorial"];
                     if (watch) watch();
+                    clearSelectionDomWait();
                     if (roomViews.includes(viewName)) {
                         watchSelectedObject((newObj) => {
-                            notifySelectionWatchers(newObj);
+                            handleSelectionChange(newObj);
                         }).then((watcher) => watch = watcher);
                     }
-                    if (roomViews.includes(oldView)) {
-                        // We notify here so listeners can deselect their stuff
-                        notifySelectionWatchers(null);
+                    if (roomViews.includes(oldView) && oldView !== viewName) {
+                        // Listeners can clear UI tied to the previous room selection.
+                        notifySelectionWatchers(null, "all");
                     }
                 });
             }
-            rootScope.objectSelectionCallbacks.push(callback);
-        })
+            rootScope.objectSelectionCallbacks.push({
+                callback,
+                immediate: !!options?.immediate,
+            });
+        });
     }
 
     /**

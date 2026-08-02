@@ -11,9 +11,9 @@
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1784569778657
-// @updateURL   https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1784569778657
-// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1784569778657
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1785672067940
+// @updateURL   https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1785672067940
+// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1785672067940
 // ==/UserScript==
 
 
