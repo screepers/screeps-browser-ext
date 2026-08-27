@@ -64,6 +64,41 @@ function getUserscripts() {
 const env = process.env.BUILD_ENV || "development";
 const repoUrl = env === "production" ? getGitHubPagesUrl() : "http://localhost:8000";
 
+const SCREEPS_OFFICIAL = [
+    "https://screeps.com/a/*",
+    "https://screeps.com/ptr/*",
+    "https://screeps.com/season/*",
+];
+
+const STEAMLESS_INCLUDE = String.raw`/^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/`;
+
+const DEFAULT_ICON = "https://www.google.com/s2/favicons?sz=64&domain=screeps.com";
+
+/**
+ * Ensure official-server @match, Steamless @include, and default @icon.
+ * @param {Userscript} script
+ */
+function applyDefaultHeaders(script) {
+    const matches = script.headers.getAll("match")
+        .filter(value => !value.includes("*.localhost"));
+    for (const url of SCREEPS_OFFICIAL) {
+        if (!matches.includes(url)) {
+            matches.push(url);
+        }
+    }
+    script.headers.set("match", matches);
+
+    const includes = script.headers.getAll("include");
+    if (!includes.includes(STEAMLESS_INCLUDE)) {
+        includes.push(STEAMLESS_INCLUDE);
+    }
+    script.headers.set("include", includes);
+
+    if (script.headers.get("icon") === null) {
+        script.headers.set("icon", DEFAULT_ICON);
+    }
+}
+
 /**
  * Process a single userscript file
  * @param {string} file
@@ -76,6 +111,7 @@ function processUserscript(file) {
         let content = readFileSync(inputPath, { encoding: "utf-8" });
 
         const script = new Userscript(content);
+        applyDefaultHeaders(script);
 
         const cacheBust = Date.now();
         const userscriptUrl = `${repoUrl}/${basename(file)}`;
@@ -89,18 +125,9 @@ function processUserscript(file) {
         }
 
         for (const header of ["updateURL", "downloadURL"]) {
-            const existing = script.headers.get(header);
-            const processed = processUrl(existing ?? "USERSCRIPT_URL");
-            if (existing === null) {
-                script.headers.add(header, processed);
-            } else {
-                script.headers.set(header, processed);
-            }
+            script.headers.set(header, processUrl(script.headers.get(header) ?? "USERSCRIPT_URL"));
         }
-        let requires = script.headers.getAll("require") ?? [];
-        for (let [require, index] of requires) {
-            script.headers.set("require", processUrl(require), index);
-        }
+        script.headers.set("require", script.headers.getAll("require").map(processUrl));
 
         writeFileSync(outputPath, script.output(), "utf-8");
         console.log(`  ✓ ${basename(file)}`);

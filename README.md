@@ -22,4 +22,4 @@ Visit the [published userscripts](https://screepers.github.io/screeps-browser-ex
 - `npm run serve` - Start a local HTTP server on port 8000
 - `npm run lint` - Run ESLint
 
-**Note:** Userscript source files use `REPO_URL` in `@require` directives for build-time URL substitution. `@updateURL` and `@downloadURL` are added automatically by the build when omitted.
+**Note:** Userscript source files use `REPO_URL` in `@require` directives for build-time URL substitution. The build adds `@match` for the official servers, a Steamless Client `@include`, a default `@icon` when omitted, and `@updateURL` / `@downloadURL`.

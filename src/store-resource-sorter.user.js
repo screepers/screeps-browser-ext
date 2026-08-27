@@ -1,13 +1,8 @@
 // ==UserScript==
 // @name        Store Resource Sorter
 // @namespace   https://screeps.com/
-// @match       https://screeps.com/a/*
-// @match       https://screeps.com/ptr/*
-// @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
-// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @grant       none
-// @version     0.1.2
+// @version     0.1.3
 // @author      -
 // @description Better sorting for the resource list in the inspector
 // @run-at      document-ready

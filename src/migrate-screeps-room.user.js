@@ -1,15 +1,10 @@
 // ==UserScript==
 // @name        Migrate room to simulator
 // @namespace   https://screeps.com/
-// @version     1.4.2
+// @version     1.4.3
 // @author      Mark Bertels, Esryok
 // @description Migrate room to simulator
-// @match       https://screeps.com/a/*
-// @match       https://screeps.com/ptr/*
-// @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
 // @run-at      context-menu
-// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @grant       none
 // ==/UserScript==
 

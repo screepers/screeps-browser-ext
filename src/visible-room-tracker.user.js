@@ -1,15 +1,10 @@
 // ==UserScript==
 // @name        Screeps visible room tracker
 // @namespace   https://screeps.com/
-// @version     0.1.4
+// @version     0.1.5
 // @author      James Cook
 // @description Track which rooms are currently visible in the viewport
-// @match       https://screeps.com/a/*
-// @match       https://screeps.com/ptr/*
-// @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
 // @run-at      document-ready
-// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
 // ==/UserScript==
 

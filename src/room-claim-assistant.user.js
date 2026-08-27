@@ -1,15 +1,10 @@
 // ==UserScript==
 // @name        Screeps room claim assistant
 // @namespace   https://screeps.com/
-// @version     0.2.1
+// @version     0.2.2
 // @author      James Cook
 // @description Assist with room claiming by showing claim stats on the map
-// @match       https://screeps.com/a/*
-// @match       https://screeps.com/ptr/*
-// @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
 // @run-at      document-ready
-// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @require     REPO_URL/screeps-browser-core.js
 // @require     REPO_URL/screeps-alpha-map.js
 // @grant       GM.getValue
