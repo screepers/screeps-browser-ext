@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name        Screeps Birthday viewer
 // @namespace   https://screeps.com
-// @version     0.1.3
+// @version     0.1.4
 // @description This adds a creep's birthday to the inspector
 // @author      Traxus, various
 // @run-at      document-ready
 // @grant       none
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787872416679
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
+// @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1785672067937
-// @updateURL   https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1785672067937
-// @downloadURL https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1785672067937
+// @updateURL   https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1787872416679
+// @downloadURL https://screepers.github.io/screeps-browser-ext/birthday-viewer.user.js?v=1787872416679
 // ==/UserScript==
 
 

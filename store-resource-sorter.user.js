@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name        Store Resource Sorter
 // @namespace   https://screeps.com/
-// @match       https://screeps.com/a/*
-// @match       https://screeps.com/ptr/*
-// @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
-// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
 // @grant       none
-// @version     0.1.2
+// @version     0.1.3
 // @author      -
 // @description Better sorting for the resource list in the inspector
 // @run-at      document-ready
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1785672067941
-// @updateURL   https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1785672067941
-// @downloadURL https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1785672067941
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787872416684
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
+// @updateURL   https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1787872416684
+// @downloadURL https://screepers.github.io/screeps-browser-ext/store-resource-sorter.user.js?v=1787872416684
 // ==/UserScript==
 
 

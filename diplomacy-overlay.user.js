@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name        Screeps diplomacy overlay
 // @namespace   https://screeps.com/
-// @version     0.3.1
+// @version     0.3.2
 // @author      James Cook
 // @description Overlay diplomacy relations on the world map
+// @run-at      document-ready
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787872416681
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1787872416681
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
-// @run-at      document-ready
+// @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1785672067939
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1785672067939
-// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1785672067939
-// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1785672067939
+// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1787872416681
+// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1787872416681
 // ==/UserScript==
 
 

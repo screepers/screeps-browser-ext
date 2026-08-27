@@ -1,20 +1,20 @@
 // ==UserScript==
 // @name        Screeps Force Alpha map
 // @namespace   https://screeps.com/
-// @match       https://screeps.com/a/*
-// @match       https://screeps.com/ptr/*
-// @match       https://screeps.com/season/*
-// @match       http://*.localhost/(*)/*
 // @grant       none
-// @version     0.0.6
+// @version     0.0.7
 // @author      -
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787872416681
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1787872416681
+// @match       https://screeps.com/a/*
+// @match       https://screeps.com/ptr/*
+// @match       https://screeps.com/season/*
+// @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1785672067939
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1785672067939
-// @updateURL   https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1785672067939
-// @downloadURL https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1785672067939
+// @updateURL   https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1787872416681
+// @downloadURL https://screepers.github.io/screeps-browser-ext/force-alpha-map.user.js?v=1787872416681
 // ==/UserScript==
 
 
