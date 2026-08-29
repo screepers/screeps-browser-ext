@@ -10,8 +10,8 @@
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/console-shard-color.user.js?v=1787980795532
-// @downloadURL https://screepers.github.io/screeps-browser-ext/console-shard-color.user.js?v=1787980795532
+// @updateURL   https://screepers.github.io/screeps-browser-ext/console-shard-color.user.js?v=1788012368536
+// @downloadURL https://screepers.github.io/screeps-browser-ext/console-shard-color.user.js?v=1788012368536
 // ==/UserScript==
 
 

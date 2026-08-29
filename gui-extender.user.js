@@ -8,14 +8,14 @@
 // @tag         games
 // @tag         screeps
 // @run-at      document-idle
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787980795533
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788012368537
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1787980795533
-// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1787980795533
+// @updateURL   https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1788012368537
+// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1788012368537
 // ==/UserScript==
 
 

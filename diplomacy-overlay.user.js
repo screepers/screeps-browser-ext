@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name        Screeps diplomacy overlay
 // @namespace   https://screeps.com/
-// @version     0.3.2
+// @version     0.3.3
 // @author      James Cook
 // @description Overlay diplomacy relations on the world map
 // @run-at      document-ready
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787980795532
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1787980795532
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788012368537
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788012368537
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1787980795532
-// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1787980795532
+// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1788012368537
+// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1788012368537
 // ==/UserScript==
 
 
@@ -115,32 +115,156 @@ function generateAndSetColor(userid, userName) {
     return color;
 }
 
+const KNOWN_USERS_KEY = "diplomacy.knownUsers";
+const NOT_USERS_KEY = "diplomacy.notUsers";
+
+/**
+ * @param {string} key
+ * @param {unknown} fallback
+ */
+function loadSessionJson(key, fallback) {
+    try {
+        const raw = sessionStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+/** @type {Record<string, { username: string }>} */
+const knownUsers = (() => {
+    const stored = loadSessionJson(KNOWN_USERS_KEY, {});
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+        return {};
+    }
+    /** @type {Record<string, { username: string }>} */
+    const users = {};
+    for (const [id, value] of Object.entries(stored)) {
+        const username = typeof value === "string" ? value : value?.username;
+        if (username) {
+            users[id] = { username };
+        }
+    }
+    return users;
+})();
+
+/** @type {Record<string, Promise<void>>} */
+const pendingUserFinds = {};
+
+const notUsers = (() => {
+    const storedNotUsers = loadSessionJson(NOT_USERS_KEY, []);
+    return new Set(
+        Array.isArray(storedNotUsers) ? storedNotUsers.filter((id) => typeof id === "string") : [],
+    );
+})();
+
+let saveUserCachesScheduled = false;
+function saveUserCaches() {
+    if (saveUserCachesScheduled) {
+        return;
+    }
+    saveUserCachesScheduled = true;
+    queueMicrotask(() => {
+        saveUserCachesScheduled = false;
+        try {
+            sessionStorage.setItem(KNOWN_USERS_KEY, JSON.stringify(knownUsers));
+            sessionStorage.setItem(NOT_USERS_KEY, JSON.stringify([...notUsers]));
+        } catch {
+            // quota / private mode
+        }
+    });
+}
+
+/**
+ * @param {string} userId
+ * @returns {string | undefined}
+ */
+function findUserName(userId) {
+    const cached = knownUsers[userId]?.username;
+    if (cached) {
+        return cached;
+    }
+
+    const username = angular.element(".world-map").scope()?.WorldMap?.roomUsers?.[userId]?.username
+        ?? angular.element(".room").scope()?.Room?.users?.[userId]?.username;
+    if (username) {
+        knownUsers[userId] = { username };
+        saveUserCaches();
+    }
+    return username;
+}
+
 /**
  * @param {string} type
  */
 function getColor(type) {
     let color = colorMap[type];
-    if (!color) {
-        /** @type {{[type: string]: { username: string }}} */
-        let userMap = {};
-        if (angular.element(".world-map").length) {
-            let worldMap = angular.element(".world-map").scope().WorldMap;
-            userMap = worldMap.roomUsers;
-        } else if (document.querySelector("app-world-map-base")) {
-            userMap = alphaMapRoomUsers;
-        } else {
-            const roomScope = angular.element(".room").scope();
-            userMap = roomScope?.Room?.users ?? {};
-        }
-
-        if (!userMap[type]) {
-            return false;
-        }
-
-        let userName = userMap[type].username;
-        color = generateAndSetColor(type, userName);
+    if (color) {
+        return color;
     }
-    return color;
+
+    const userName = findUserName(type);
+    if (!userName) {
+        return false;
+    }
+    return generateAndSetColor(type, userName);
+}
+
+/**
+ * Look up a roomMap2 key as a user at most once; share in-flight requests.
+ * @param {string} userId
+ * @returns {Promise<void>}
+ */
+function ensureUserKnown(userId) {
+    if (getColor(userId) || notUsers.has(userId)) {
+        return Promise.resolve();
+    }
+    if (!pendingUserFinds[userId]) {
+        pendingUserFinds[userId] = ScreepsAdapter.Api.get("user/find", { id: userId })
+            .then((data) => {
+                if (getColor(userId)) {
+                    return;
+                }
+                const username = data?.user?.username;
+                if (!username) {
+                    notUsers.add(userId);
+                    saveUserCaches();
+                    return;
+                }
+                knownUsers[userId] = { username };
+                generateAndSetColor(userId, username);
+                saveUserCaches();
+            })
+            .catch(() => {})
+            .finally(() => {
+                delete pendingUserFinds[userId];
+            });
+    }
+    return pendingUserFinds[userId];
+}
+
+/**
+ * Paint immediately (unknown ids as zombie gray), then again after user lookups.
+ * @param {() => void} paint
+ * @param {Record<string, [number, number][] | undefined> | null | undefined} objects
+ * @param {() => boolean} isCurrent
+ */
+async function paintThenResolveUsers(paint, objects, isCurrent) {
+    paint();
+    if (!objects) {
+        return;
+    }
+    const unresolved = Object.keys(objects).filter((type) =>
+        objects[type]?.length && !getColor(type) && !notUsers.has(type)
+    );
+    if (!unresolved.length) {
+        return;
+    }
+    await Promise.all(unresolved.map(ensureUserKnown));
+    if (!isCurrent()) {
+        return;
+    }
+    paint();
 }
 
 /**
@@ -187,6 +311,21 @@ function ensureDiplomacyData(callback) {
 }
 
 /**
+ * @param {CanvasRenderingContext2D} graphics
+ * @param {Record<string, [number, number][] | undefined> | null | undefined} objects
+ * @param {number} mapScale
+ */
+function paintRoomObjects(graphics, objects, mapScale) {
+    const image = graphics.createImageData(50 * mapScale, 50 * mapScale);
+    if (objects) {
+        _.forEach(objects, function (positions, itemType) {
+            colorPositions(image, positions, getColor(itemType) || zombieColor, mapScale);
+        });
+    }
+    graphics.putImageData(image, 0, 0);
+}
+
+/**
  *
  * @param {any} scope
  * @param {HTMLCanvasElement} element
@@ -196,26 +335,13 @@ function ensureDiplomacyData(callback) {
 function prepareRoomObjects(scope, element, roomHandle, mapScale) {
     let graphics = element.getContext("2d");
     element.listenerEvent = ScreepsAdapter.Socket.bindEventToScope(scope, `roomMap2:${roomHandle}`, function(objects) {
-        let image = graphics.createImageData(50 * mapScale, 50 * mapScale);
-        if (objects) {
-            if (_.any(objects, (obj) => !getColor(obj.itemType)));
-            _.forEach(objects, function(positions, itemType) {
-                let color = getColor(itemType);
-                if (!color) {
-                    ScreepsAdapter.Api.get("user/find?id=" + itemType).then((data) => {
-                        if (getColor(itemType)) return; // someone already loaded this
-
-                        let userName = data.user.username;
-                        generateAndSetColor(itemType, userName);
-                    });
-                    colorPositions(image, positions, zombieColor, mapScale);
-                } else {
-                    colorPositions(image, positions, color, mapScale);
-                }
-            });
-        }
-        graphics.putImageData(image, 0, 0);
-    })
+        element.lastObjects = objects;
+        void paintThenResolveUsers(
+            () => paintRoomObjects(graphics, objects, mapScale),
+            objects,
+            () => element.roomHandle === roomHandle && element.lastObjects === objects,
+        );
+    });
 
     element.roomHandle = roomHandle;
 }
@@ -342,9 +468,6 @@ function bindRoomStatsMonitor() {
 
 const DIPLOMACY_LAYER = "diplomacy-units";
 
-/** @type {Record<string, { username: string }>} */
-let alphaMapRoomUsers = {};
-
 function diplomacyUnitsEnabled() {
     return ScreepsAdapter.getSetting("diplomacyUnits", true);
 }
@@ -390,26 +513,21 @@ async function drawDiplomacyRoom(layer, room, objects) {
         return;
     }
 
-    const pixels = AlphaMap.drawRoomObjects(objects, (itemType) => {
-        const color = getColor(itemType);
-        if (!color) {
-            ScreepsAdapter.Api.get("user/find?id=" + itemType).then((data) => {
-                if (getColor(itemType)) {
-                    return;
-                }
-                generateAndSetColor(itemType, data.user.username);
-            });
-            return zombieColor;
-        }
-        return color;
-    });
+    const paint = () => {
+        const pixels = AlphaMap.drawRoomObjects(objects, (itemType) => getColor(itemType) || zombieColor);
+        const texture = pixi.Texture.fromBuffer(pixels, AlphaMap.ROOM_SIZE, AlphaMap.ROOM_SIZE);
+        destroyDiplomacyRoomSprite(layer, room);
+        const sprite = layer.createRoomSprite(room, texture);
+        sprite.blendMode = pixi.BLEND_MODES.ADD;
+        layer.container.addChild(sprite);
+        AlphaMap.markDirty();
+    };
 
-    const texture = pixi.Texture.fromBuffer(pixels, AlphaMap.ROOM_SIZE, AlphaMap.ROOM_SIZE);
-    destroyDiplomacyRoomSprite(layer, room);
-    const sprite = layer.createRoomSprite(room, texture);
-    sprite.blendMode = pixi.BLEND_MODES.ADD;
-    layer.container.addChild(sprite);
-    AlphaMap.markDirty();
+    await paintThenResolveUsers(
+        paint,
+        objects,
+        () => diplomacyAlphaMapDrawAllowed() && layer.renderable && layer._lastObjects?.get(room) === objects,
+    );
 }
 
 /**
@@ -418,7 +536,8 @@ async function drawDiplomacyRoom(layer, room, objects) {
 function updateAlphaMapRoomUsers(users) {
     for (const { user } of users) {
         if (user?._id && user.username) {
-            alphaMapRoomUsers[user._id] = { username: user.username };
+            knownUsers[user._id] = { username: user.username };
+            saveUserCaches();
         }
     }
 }
@@ -496,6 +615,8 @@ function installAlphaMapDiplomacyLayer() {
                     super(DIPLOMACY_LAYER);
                     /** @type {Map<string, { remove(): void }>} */
                     this._roomSockets = new Map();
+                    /** @type {Map<string, Record<string, [number, number][]>>} */
+                    this._lastObjects = new Map();
                     /** @type {AlphaMap.MapBound | undefined} */
                     this._lastBound = undefined;
                 }
@@ -505,6 +626,7 @@ function installAlphaMapDiplomacyLayer() {
                         handle.remove();
                     }
                     this._roomSockets.clear();
+                    this._lastObjects.clear();
                 }
 
                 /**
@@ -534,6 +656,7 @@ function installAlphaMapDiplomacyLayer() {
                         if (!rooms.has(room)) {
                             handle.remove();
                             this._roomSockets.delete(room);
+                            this._lastObjects.delete(room);
                             destroyDiplomacyRoomSprite(this, room);
                         }
                     }
@@ -550,6 +673,7 @@ function installAlphaMapDiplomacyLayer() {
                                 if (!diplomacyAlphaMapDrawAllowed() || !this.renderable) {
                                     return;
                                 }
+                                this._lastObjects.set(room, objects);
                                 void drawDiplomacyRoom(this, room, objects);
                             },
                         );
