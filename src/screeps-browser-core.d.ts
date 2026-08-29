@@ -133,9 +133,12 @@ declare var ScreepsAdapter: {
         getRoomNameFromXY(x: number, y: number): string;
     };
     Socket: {
-        bindEventToScope(unk: AnyTlsaRecord, scopeName: string, callback: (...args: any[]) => void): {
-            remove(): void;
-        };
+        bindEventToScope(
+            scope: angular.IScope,
+            channel: string,
+            callback: (data: any, event?: unknown) => void,
+            onError?: (data: any, event?: unknown) => void,
+        ): { remove(): void };
     };
     User: {
         _id: string;
