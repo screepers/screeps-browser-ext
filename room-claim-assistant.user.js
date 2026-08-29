@@ -5,8 +5,8 @@
 // @author      James Cook
 // @description Assist with room claiming by showing claim stats on the map
 // @run-at      document-ready
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788044347625
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788044347625
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788045052919
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788045052919
 // @grant       GM.getValue
 // @grant       GM.setValue
 // @match       https://screeps.com/a/*
@@ -14,8 +14,8 @@
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1788044347625
-// @downloadURL https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1788044347625
+// @updateURL   https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1788045052919
+// @downloadURL https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1788045052919
 // ==/UserScript==
 
 
