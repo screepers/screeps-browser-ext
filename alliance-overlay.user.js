@@ -1,22 +1,22 @@
 // ==UserScript==
 // @name        Screeps alliance overlay
 // @namespace   https://screeps.com/
-// @version     0.3.3
+// @version     0.3.4
 // @author      James Cook
 // @description Overlay alliance relations on the world map
 // @run-at      document-ready
 // @grant       GM.xmlHttpRequest
-// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1787872416678
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787872416678
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1787872416678
+// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1787980795531
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1787980795531
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1787980795531
 // @connect     www.leagueofautomatednations.com
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1787872416678
-// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1787872416678
+// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1787980795531
+// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1787980795531
 // ==/UserScript==
 
 
@@ -954,6 +954,7 @@ function updateAlphaMapTooltipAlliance(tooltipEl, data) {
     tooltipEl.querySelector(".alliance-tooltip-row")?.remove();
 
     if (!alliancesEnabled() || !data?.own?.username) {
+        tooltipEl.querySelector(".__alliance")?.remove();
         return;
     }
 
