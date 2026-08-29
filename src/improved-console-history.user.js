@@ -2,7 +2,7 @@
 // @name        Screeps improved console history
 // @namespace   https://screeps.com/
 // @grant       none
-// @version     1.5.3
+// @version     1.5.4
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
@@ -132,15 +132,28 @@ function parseInt(str, radix = 10) {
     let buffer = "";
 
     /**
-     * List of single-letter "variables" that can be substitued on the fly into a command
+     * List of single-letter "variables" that can be substituted on the fly into a command
+     * @type {Record<string, { desc: string, get: () => string }>}
      */
     const CLI_VARS = {
-        "r": () => `"${getCurrentRoom().roomName}"`,
-        "s": () => `"${getCurrentRoom().shardName}"`,
-        "i": () => `"${selectedObject()._id}"`,
-        "p": () => {
-            const obj = selectedObject();
-            return `${obj.x}, ${obj.y}, "${obj.room}"`
+        r: {
+            desc: "Current room name",
+            get: () => `"${getCurrentRoom().roomName}"`,
+        },
+        s: {
+            desc: "Current shard name",
+            get: () => `"${getCurrentRoom().shardName}"`,
+        },
+        i: {
+            desc: "Selected object id",
+            get: () => `"${selectedObject()._id}"`,
+        },
+        p: {
+            desc: "Selected object position as x, y, \"room\"",
+            get: () => {
+                const obj = selectedObject();
+                return `${obj.x}, ${obj.y}, "${obj.room}"`;
+            },
         },
     };
 
@@ -154,25 +167,34 @@ function parseInt(str, radix = 10) {
             desc: "Show this help",
             run: () => {
                 /**
-                 * @param {[cmd: string, desc: string]} str
-                 * @returns
+                 * @param {string} sigil
+                 * @param {string} name
+                 * @param {string} desc
                  */
-                const fmtCmd = (str) => {
-                    return `  ${COMMAND_SIGIL}${str[0]} - ${str[1]}`
-                }
-                const msg = `Screeps improved console history: version ${SICH_VERSION}\n` +
-                `Available commands:\n` +
-                CLI_CMDS.map(c => {
+                const fmtLine = (sigil, name, desc) => {
+                    return escapeHtml(`  ${sigil}${name} - ${desc}`);
+                };
+                /**
+                 * @param {[cmd: string, desc: string]} str
+                 */
+                const fmtCmd = (str) => fmtLine(COMMAND_SIGIL, str[0], str[1]);
+                const cmds = CLI_CMDS.map(c => {
                     if ("alias" in c) {
-                        return fmtCmd([c.name, `An alias for ${COMMAND_SIGIL}${c.alias}`]);
+                        const alias = Array.isArray(c.alias) ? c.alias.join(" ") : c.alias;
+                        return fmtCmd([c.name, `An alias for ${COMMAND_SIGIL}${alias}`]);
                     }
                     if (!c.desc) return;
 
                     /** @type {[string, string][]} */
                     const strs = (typeof c.desc === "string" ? [[c.name, c.desc]] : c.desc);
-                    const strs2 = strs.map(str => fmtCmd(str));
-                    return strs2.join("\n");
-                }).filter(c => !!c).join(`\n`);
+                    return strs.map(str => fmtCmd(str)).join("\n");
+                }).filter(c => !!c).join("\n");
+                const vars = Object.entries(CLI_VARS).map(([name, v]) => {
+                    return fmtLine(VARIABLE_SIGIL, name, v.desc);
+                }).join("\n");
+                const msg = `Screeps improved console history: version ${SICH_VERSION}\n` +
+                    `Available commands:\n${cmds}\n` +
+                    `Available variables (substituted into game console commands):\n${vars}`;
                 appendConsoleMessage(msg);
             }
         },
@@ -410,6 +432,17 @@ function parseInt(str, radix = 10) {
     const MAX_CONSOLE_MESSAGE_COUNT = 100; // From engine
 
     /**
+     * Escape text so it can be shown in the console's trusted-HTML renderer.
+     * @param {string} str
+     */
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    /**
      * @param {string} msg
      * @param {boolean} [error=false]
      * @returns
@@ -462,8 +495,7 @@ function parseInt(str, radix = 10) {
         for (const v in CLI_VARS) {
             const regex = new RegExp(`(?<![\w\"'])${VARIABLE_SIGIL}${v}(?![\w\"])`, "g")
             try {
-                // @ts-expect-error
-                let replacement = CLI_VARS[v]();
+                let replacement = CLI_VARS[v].get();
                 line = line.replaceAll(regex, replacement);
             } catch {
                 for (const match of [...line.matchAll(regex)]) {
@@ -490,9 +522,9 @@ function parseInt(str, radix = 10) {
             if (Array.isArray(cmd.alias)) {
                 args.unshift(cmd.alias[1]);
                 return getCommand(cmd.alias[0], []);
-            } 
+            }
             return getCommand(cmd.alias, []);
-            
+
         }
         return cmd;
     }
