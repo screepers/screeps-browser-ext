@@ -115,7 +115,7 @@ declare var ScreepsAdapter: {
     };
     $timeout(callback: () => void, timeout: number = undefined);
     Api: {
-        get(route: string): Promise<any>;
+        get(route: string, params?: Record<string, unknown>): Promise<any>;
         post(route: string, body: any): Promise<void>;
     };
     Connection: {

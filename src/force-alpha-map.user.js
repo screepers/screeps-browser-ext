@@ -2,7 +2,7 @@
 // @name        Screeps Force Alpha map
 // @namespace   https://screeps.com/
 // @grant       none
-// @version     0.0.7
+// @version     0.0.8
 // @author      -
 // @description Always open the world map on the alpha map
 // @run-at      document-ready
@@ -87,6 +87,67 @@
         };
     }
 
+    /**
+     * @returns {string | undefined}
+     */
+    function currentPos() {
+        const fromRoute = ScreepsAdapter.AlphaMap.getBaseComponent()?._route?.snapshot?.queryParams?.pos;
+        if (fromRoute !== null && fromRoute !== undefined && fromRoute !== "") {
+            return String(fromRoute);
+        }
+
+        const hash = window.location.hash;
+        const queryLoc = hash.indexOf("?");
+        if (queryLoc === -1) {
+            return undefined;
+        }
+        return new URLSearchParams(hash.substring(queryLoc + 1)).get("pos") ?? undefined;
+    }
+
+    /**
+     * Center on a room on the current shard when the alpha map opens without `pos`.
+     * Never changes shard; missing/empty start room keeps the stock `[0, 0]` default.
+     */
+    async function applyStartRoomPos() {
+        if (currentPos()) {
+            return;
+        }
+
+        const AlphaMap = ScreepsAdapter.AlphaMap;
+        const shard = AlphaMap.getShard() ?? ScreepsAdapter.$routeSegment.$routeParams.shard;
+        if (!shard) {
+            return;
+        }
+
+        let room;
+        try {
+            const data = await ScreepsAdapter.Api.get("user/world-start-room", { shard });
+            room = data?.room?.[0];
+        } catch {
+            return;
+        }
+
+        if (typeof room !== "string" || !room) {
+            return;
+        }
+
+        let pos;
+        try {
+            const [x, y] = ScreepsAdapter.MapUtils.roomNameToXY(room);
+            pos = `${x + 0.5},${y + 0.5}`;
+        } catch {
+            return;
+        }
+
+        const base = AlphaMap.getBaseComponent();
+        if (base?._updateRouteData) {
+            base._updateRouteData([shard], { pos });
+            return;
+        }
+
+        ScreepsAdapter.$location.url(alphaMapUrl(pos));
+    }
+
     ScreepsAdapter.ready(() => {
         ScreepsAdapter.onViewChange((triggerName) => {
             if (triggerName === "top.game-room") {
@@ -101,5 +162,7 @@
                 ScreepsAdapter.$location.url(alphaMapUrl(pos));
             }
         });
+
+        ScreepsAdapter.AlphaMap.ready(() => applyStartRoomPos());
     });
 })();
