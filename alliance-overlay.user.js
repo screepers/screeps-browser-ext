@@ -6,17 +6,17 @@
 // @description Overlay alliance relations on the world map
 // @run-at      document-ready
 // @grant       GM.xmlHttpRequest
-// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1788012368535
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788012368535
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788012368535
+// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1788044347622
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788044347622
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788044347622
 // @connect     www.leagueofautomatednations.com
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1788012368535
-// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1788012368535
+// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1788044347622
+// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1788044347622
 // ==/UserScript==
 
 
