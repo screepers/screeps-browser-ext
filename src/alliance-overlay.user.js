@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Screeps alliance overlay
 // @namespace   https://screeps.com/
-// @version     0.3.3
+// @version     0.3.4
 // @author      James Cook
 // @description Overlay alliance relations on the world map
 // @run-at      document-ready
@@ -945,6 +945,7 @@ function updateAlphaMapTooltipAlliance(tooltipEl, data) {
     tooltipEl.querySelector(".alliance-tooltip-row")?.remove();
 
     if (!alliancesEnabled() || !data?.own?.username) {
+        tooltipEl.querySelector(".__alliance")?.remove();
         return;
     }
 
