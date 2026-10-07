@@ -6,17 +6,17 @@
 // @description Overlay alliance relations on the world map
 // @run-at      document-ready
 // @grant       GM.xmlHttpRequest
-// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1788045052914
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788045052914
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788045052914
+// @require     http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js?v=1791414172494
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1791414172494
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1791414172494
 // @connect     www.leagueofautomatednations.com
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1788045052914
-// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1788045052914
+// @updateURL   https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1791414172494
+// @downloadURL https://screepers.github.io/screeps-browser-ext/alliance-overlay.user.js?v=1791414172494
 // ==/UserScript==
 
 
@@ -653,48 +653,13 @@ function ensureAllianceData(callback) {
 }
 
 /**
- * @returns {any | null}
- */
-function getClassicWorldMap() {
-    for (const selector of [".map-container", ".world-map"]) {
-        const elem = angular.element(selector);
-        if (!elem.length) {
-            continue;
-        }
-        const worldMap = elem.scope()?.WorldMap;
-        if (worldMap) {
-            return worldMap;
-        }
-    }
-    return null;
-}
-
-/**
- * @returns {{ scope: any, worldMap: any, mapContainerElem: JQuery } | null}
- */
-function getClassicWorldMapContext() {
-    const mapContainerElem = angular.element(".map-container");
-    if (!mapContainerElem.length) {
-        return null;
-    }
-
-    const scope = mapContainerElem.scope();
-    const worldMap = scope?.WorldMap;
-    if (!scope || !worldMap) {
-        return null;
-    }
-
-    return { scope, worldMap, mapContainerElem };
-}
-
-/**
  * Stuff references to the alliance data in the world map object. Not clear whether this is actually doing useful things.
  */
 function exposeAllianceDataForAngular() {
     let $timeout = angular.element("body").injector().get("$timeout");
 
     $timeout(() => {
-        const worldMap = getClassicWorldMap();
+        const worldMap = ScreepsAdapter.getWorldMap();
         if (!worldMap) {
             return;
         }
@@ -716,7 +681,7 @@ function exposeAllianceDataForAngular() {
  */
 function bindAllianceSetting() {
     let alliancesEnabled = ScreepsAdapter.getSetting("alliancesEnabled", true);
-    const worldMap = getClassicWorldMap();
+    const worldMap = ScreepsAdapter.getWorldMap();
     if (!worldMap) {
         return;
     }
@@ -763,12 +728,14 @@ function addAllianceToInfoOverlay() {
 }
 
 function recalculateAllianceOverlay() {
-    const ctx = getClassicWorldMapContext();
-    if (!ctx) {
+    const worldMap = /** @type {WorldMapController} */ (ScreepsAdapter.getWorldMap());
+    if (!worldMap) {
         return;
     }
-
-    const { worldMap, mapContainerElem } = ctx;
+    const mapContainerElem = angular.element(".map-container");
+    if (!mapContainerElem.length) {
+        return;
+    }
     if (!worldMap.displayOptions.alliances || !worldMap.allianceData) return;
 
     /**
@@ -780,7 +747,7 @@ function recalculateAllianceOverlay() {
         let roomDiv = $('<div class="alliance-logo" id="' + roomName + '"></div>');
         let roomStats = worldMap.roomStats[roomName];
         if (roomStats && roomStats.own) {
-            let userName = worldMap.roomUsers[roomStats.own.user].username;
+            let userName = worldMap.roomUsers[roomStats.own.user]?.username;
             let allianceKey = worldMap.userAlliance[userName];
             if (allianceKey) {
                 $(roomDiv).addClass("alliance-" + allianceKey);
@@ -817,8 +784,9 @@ function recalculateAllianceOverlay() {
 
             if (worldMap.zoom === 3) {
                 // we're at zoom level 3, only render one room
+                if (sector.name === undefined || sector.left === undefined || sector.top === undefined) continue;
                 drawRoomAllianceOverlay(sector.name, sector.left, sector.top);
-            } else if (sector.rooms) {
+            } else if (sector.rooms && sector.left !== undefined && sector.top !== undefined) {
                 // high zoom, render a bunch of rooms
                 let rooms = sector.rooms.split(",");
                 for (let x = 0; x < roomsPerSectorEdge; x++) {
@@ -844,13 +812,8 @@ function addSectorAllianceOverlay() {
         .alliance-logo-3 { width: 50px; height: 50px; background-size: 50px 50px; opacity: 0.8 }\
     ");
 
-    const ctx = getClassicWorldMapContext();
-    if (!ctx) {
-        return;
-    }
-
-    const { scope } = ctx;
-
+    const scope = ScreepsAdapter.getMapScope();
+    if (!scope) return;
     let deferRecalculation = function () {
         // remove alliance logos during redraws
         document.querySelectorAll(".alliance-logo").forEach(n => n.remove());

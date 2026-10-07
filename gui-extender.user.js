@@ -8,14 +8,14 @@
 // @tag         games
 // @tag         screeps
 // @run-at      document-idle
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788045052917
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1791414172496
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1788045052917
-// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1788045052917
+// @updateURL   https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1791414172496
+// @downloadURL https://screepers.github.io/screeps-browser-ext/gui-extender.user.js?v=1791414172496
 // ==/UserScript==
 
 
@@ -1004,12 +1004,16 @@ ScreepsAdapter.ready(() => {
         const expansionData = {};
         const pendingData = {};
 
-        const getMissingRoomObjects = (scope) => {
-            const shard = scope.WorldMap.shard;
+        const getMissingRoomObjects = () => {
+            const worldMap = ScreepsAdapter.getWorldMap();
+            if (!worldMap) {
+                return;
+            }
+            const shard = worldMap.shard;
             expansionData[shard] ||= {};
             pendingData[shard] ||= {};
 
-            const roomNames = _(scope.WorldMap.sectors)
+            const roomNames = _(worldMap.sectors)
                 .map((s) => s.name)
                 .compact()
                 .filter((room) => !expansionData[shard][room] && !pendingData[shard][room])
@@ -1098,9 +1102,12 @@ ScreepsAdapter.ready(() => {
             }
 
             removeWatcher = scope.$watch(
-                (scope) => _(scope.WorldMap.sectors).map((s) => s.name).compact().join(","),
-                (newVal, oldVal, scope) => {
-                    getMissingRoomObjects(scope);
+                () => {
+                    const worldMap = ScreepsAdapter.getWorldMap();
+                    return worldMap ? _(worldMap.sectors).map((s) => s.name).compact().join(",") : "";
+                },
+                () => {
+                    getMissingRoomObjects();
                     updateMapView();
                 },
             );

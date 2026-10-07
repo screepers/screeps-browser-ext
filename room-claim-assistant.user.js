@@ -5,8 +5,8 @@
 // @author      James Cook
 // @description Assist with room claiming by showing claim stats on the map
 // @run-at      document-ready
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788045052919
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788045052919
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1791414172498
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1791414172498
 // @grant       GM.getValue
 // @grant       GM.setValue
 // @match       https://screeps.com/a/*
@@ -14,15 +14,18 @@
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1788045052919
-// @downloadURL https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1788045052919
+// @updateURL   https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1791414172498
+// @downloadURL https://screepers.github.io/screeps-browser-ext/room-claim-assistant.user.js?v=1791414172498
 // ==/UserScript==
 
 
 
 async function bindIgnoreSignsSetting() {
-    let mapContainerElem = angular.element(".map-container");
-    let worldMap = mapContainerElem.scope().WorldMap;
+    const mapScope = ScreepsAdapter.getMapScope();
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap || !mapScope) {
+        return;
+    }
 
     worldMap.displayOptions.ignoreSigns = false;
     const ignoreSigns = await GM.getValue("ignoreSigns", false)
@@ -31,7 +34,7 @@ async function bindIgnoreSignsSetting() {
     worldMap.toggleIgnoreSigns = function () {
         worldMap.displayOptions.ignoreSigns = !worldMap.displayOptions.ignoreSigns;
         GM.setValue("ignoreSigns", worldMap.displayOptions.ignoreSigns);
-        mapContainerElem.scope().$broadcast("recalcMapSectors");
+        mapScope.$broadcast("recalcMapSectors");
     };
 }
 
@@ -87,8 +90,10 @@ function interceptClaim0StatsRequest() {
 function recalculateClaimOverlay() {
     // console.log("recalculateClaimOverlay");
     let user = angular.element(document.body).scope().Me();
-    let mapContainerElem = angular.element(".map-container");
-    let worldMap = mapContainerElem.scope().WorldMap;
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap) {
+        return;
+    }
 
     let mapSectors = document.querySelectorAll(".map-sector");
     for (let i = 0; i < mapSectors.length; i++) {
@@ -110,25 +115,26 @@ function recalculateClaimOverlay() {
                     return;
                 }
 
-                let userOwned = (roomStats.own && roomStats.own.user === user._id);
-                let invaderOwned = (roomStats.own && roomStats.own.user === "2"); // 2 is the hardcoded ID for Invader
+                const owner = roomStats.own;
+                let userOwned = owner?.user === user._id;
+                let invaderOwned = owner?.user === "2"; // 2 is the hardcoded ID for Invader
 
                 // show minerals if:
                 let showMinerals =
-                    (userOwned && roomStats.own.level > 0) || //  user has claimed it OR
+                    (userOwned && owner && owner.level > 0) || //  user has claimed it OR
                     counts.s.length > 1; // it has 2+ sources
 
                 let state = "not-recommended";
-                if (userOwned && roomStats.own.level > 0) {
+                if (userOwned && owner && owner.level > 0) {
                     state = "owned";
-                } else if (roomStats.own && !userOwned && !invaderOwned) {
+                } else if (owner && !userOwned && !invaderOwned) {
                     state = "prohibited"; // rooms reserved or claimed by anyone except the user or Invader
                 } else if (!worldMap.displayOptions.ignoreSigns && roomStats.sign && !userOwned && roomStats.sign.user !== user._id) {
                     state = "signed";
                 } else if (counts.c.length === 0) {
                     state = "unclaimable";
                 } else if (counts.s.length >= 2 &&
-                    (!roomStats.own || (userOwned && roomStats.own.level === 0) || invaderOwned)) {
+                    (!owner || (userOwned && owner.level === 0) || invaderOwned)) {
                     // recommend if it has two sources and a controller, nobody else owns it,
                     // and user hasn't already claimed
                     state = "recommended";
@@ -163,9 +169,11 @@ function recalculateClaimOverlay() {
 
 let pendingClaimRedraws = 0;
 function bindMapStatsMonitor() {
-    let mapContainerElem = angular.element(".map-container");
-    let scope = mapContainerElem.scope();
-    let worldMap = scope.WorldMap;
+    let scope = ScreepsAdapter.getMapScope();
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!scope || !worldMap) {
+        return;
+    }
 
     let deferRecalculation = function () {
         document.querySelectorAll(".claim-assist").forEach(e => e.remove());

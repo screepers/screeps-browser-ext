@@ -5,15 +5,15 @@
 // @author      James Cook
 // @description Overlay diplomacy relations on the world map
 // @run-at      document-ready
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1788045052916
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1788045052916
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1791414172496
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1791414172496
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1788045052916
-// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1788045052916
+// @updateURL   https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1791414172496
+// @downloadURL https://screepers.github.io/screeps-browser-ext/diplomacy-overlay.user.js?v=1791414172496
 // ==/UserScript==
 
 
@@ -185,7 +185,7 @@ function findUserName(userId) {
         return cached;
     }
 
-    const username = angular.element(".world-map").scope()?.WorldMap?.roomUsers?.[userId]?.username
+    const username = ScreepsAdapter.getWorldMap()?.roomUsers[userId]?.username
         ?? angular.element(".room").scope()?.Room?.users?.[userId]?.username;
     if (username) {
         knownUsers[userId] = { username };
@@ -353,8 +353,10 @@ function recalculateWorldMapDiplomacyOverlay() {
     content.width = 150;
     content.setAttribute("map-scale", "3");
 
-    let mapContainerElem = angular.element(".map-container");
-    let worldMap = mapContainerElem.scope().WorldMap;
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap) {
+        return;
+    }
 
     let mapSectors = document.querySelectorAll(".map-sector");
     for (let i = 0; i < mapSectors.length; i++) {
@@ -382,8 +384,10 @@ function recalculateWorldMapDiplomacyOverlay() {
 
 let pendingWorldMapDiplomacyRedraws = 0;
 function deferWorldMapDiplomacyRedraw() {
-    let scope = angular.element(".map-container").scope();
-    let worldMap = scope.WorldMap;
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap) {
+        return;
+    }
 
     const content = document.querySelectorAll(".room-diplomacy-objects");
     for (const elem of content) {
@@ -405,7 +409,10 @@ function deferWorldMapDiplomacyRedraw() {
 }
 
 function bindDiplomacyUnitsSetting() {
-    let worldMap = angular.element(".map-container").scope().WorldMap;
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap) {
+        return;
+    }
     worldMap.displayOptions.diplomacyUnits = ScreepsAdapter.getSetting("diplomacyUnits", true);
 
     worldMap.toggleDiplomacyUnits = function () {
