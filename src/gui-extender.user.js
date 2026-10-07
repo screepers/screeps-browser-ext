@@ -995,12 +995,16 @@ ScreepsAdapter.ready(() => {
         const expansionData = {};
         const pendingData = {};
 
-        const getMissingRoomObjects = (scope) => {
-            const shard = scope.WorldMap.shard;
+        const getMissingRoomObjects = () => {
+            const worldMap = ScreepsAdapter.getWorldMap();
+            if (!worldMap) {
+                return;
+            }
+            const shard = worldMap.shard;
             expansionData[shard] ||= {};
             pendingData[shard] ||= {};
 
-            const roomNames = _(scope.WorldMap.sectors)
+            const roomNames = _(worldMap.sectors)
                 .map((s) => s.name)
                 .compact()
                 .filter((room) => !expansionData[shard][room] && !pendingData[shard][room])
@@ -1089,9 +1093,12 @@ ScreepsAdapter.ready(() => {
             }
 
             removeWatcher = scope.$watch(
-                (scope) => _(scope.WorldMap.sectors).map((s) => s.name).compact().join(","),
-                (newVal, oldVal, scope) => {
-                    getMissingRoomObjects(scope);
+                () => {
+                    const worldMap = ScreepsAdapter.getWorldMap();
+                    return worldMap ? _(worldMap.sectors).map((s) => s.name).compact().join(",") : "";
+                },
+                () => {
+                    getMissingRoomObjects();
                     updateMapView();
                 },
             );

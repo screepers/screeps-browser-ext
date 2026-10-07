@@ -1,7 +1,7 @@
 (() => {
     "use strict";
 
-    const VERSION = "0.6.0";
+    const VERSION = "0.6.1";
 
     /**
      * @param {string} a
@@ -517,12 +517,17 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
         return angular.element(".map-container").scope();
     }
 
+    ScreepsAdapter.getMapScope = getMapScope;
+
     /**
-     * @returns {any}
+     * Classic world map controller. Undefined when that view is not in the DOM.
+     * @returns {WorldMapController | undefined}
      */
     function getWorldMap() {
-        return getMapScope().WorldMap;
+        return getMapScope()?.WorldMap;
     }
+
+    ScreepsAdapter.getWorldMap = getWorldMap;
 
     /**
      * @param {string} content
@@ -647,7 +652,7 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
      */
     function applyNativeUnitsVisibility(mapContainer) {
         const worldMap = getWorldMap();
-        if (!mapButtons.some((btn) => btn.replacesUnits)) {
+        if (!worldMap || !mapButtons.some((btn) => btn.replacesUnits)) {
             return;
         }
         const replacingVisible = mapContainer
@@ -676,10 +681,9 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
             return 0;
         }
         // Native units button is always in the toolbar at zoom 3.
-        if (getWorldMap().zoom == 3) { // eslint-disable-line eqeqeq
-            return 1;
-        }
-        return 0;
+        const map = getWorldMap();
+        if (!map) return 0;
+        return map.zoom === 3 ? 1 : 0;
     }
 
     /**
@@ -739,7 +743,7 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
 
     function syncLayerSelectPositions() {
         const worldMap = getWorldMap();
-        if (typeof worldMap.getMapExtLayerSelectStyle === "function") {
+        if (worldMap && typeof worldMap.getMapExtLayerSelectStyle === "function") {
             worldMap.getMapExtLayerSelectStyle();
         }
     }
@@ -755,6 +759,9 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
 
         const scope = getMapScope();
         const worldMap = getWorldMap();
+        if (!scope || !worldMap) {
+            return;
+        }
         const $timeout = mapContainerElem.injector().get("$timeout");
         const digest = () => scope.$evalAsync(() => {
             syncLayerSelectPositions();
@@ -825,8 +832,14 @@ section.world-map .map-container .layer-select ~ .layer-select { display: none !
         const registered = mapButtons.map((btn) => btn.id).join(", ");
         log(`setup started (${registered})`);
 
+        const worldMap = getWorldMap();
+        if (!worldMap) {
+            log("setup skipped (no WorldMap)");
+            return;
+        }
+
         const mapContainerElem = angular.element(mapContainer);
-        installMapButtonLayoutHelpers(getWorldMap(), mapContainer);
+        installMapButtonLayoutHelpers(worldMap, mapContainer);
         ensureMapButtonBaseStyles();
 
         if (mapButtonBarNeedsRecreate(mapContainer)) {

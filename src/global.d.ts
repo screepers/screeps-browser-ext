@@ -17,3 +17,10 @@ declare function randomColor(opts: {
     seed: string;
     format: "hslArray";
 }): HSLColor;
+
+interface WorldMapDisplayOptions {
+    // Room Claim Assistant
+    ignoreSigns: boolean;
+    // Alliance Overlay
+    alliances: boolean;
+}

@@ -176,7 +176,7 @@ function findUserName(userId) {
         return cached;
     }
 
-    const username = angular.element(".world-map").scope()?.WorldMap?.roomUsers?.[userId]?.username
+    const username = ScreepsAdapter.getWorldMap()?.roomUsers[userId]?.username
         ?? angular.element(".room").scope()?.Room?.users?.[userId]?.username;
     if (username) {
         knownUsers[userId] = { username };
@@ -344,8 +344,10 @@ function recalculateWorldMapDiplomacyOverlay() {
     content.width = 150;
     content.setAttribute("map-scale", "3");
 
-    let mapContainerElem = angular.element(".map-container");
-    let worldMap = mapContainerElem.scope().WorldMap;
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap) {
+        return;
+    }
 
     let mapSectors = document.querySelectorAll(".map-sector");
     for (let i = 0; i < mapSectors.length; i++) {
@@ -373,8 +375,10 @@ function recalculateWorldMapDiplomacyOverlay() {
 
 let pendingWorldMapDiplomacyRedraws = 0;
 function deferWorldMapDiplomacyRedraw() {
-    let scope = angular.element(".map-container").scope();
-    let worldMap = scope.WorldMap;
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap) {
+        return;
+    }
 
     const content = document.querySelectorAll(".room-diplomacy-objects");
     for (const elem of content) {
@@ -396,7 +400,10 @@ function deferWorldMapDiplomacyRedraw() {
 }
 
 function bindDiplomacyUnitsSetting() {
-    let worldMap = angular.element(".map-container").scope().WorldMap;
+    const worldMap = ScreepsAdapter.getWorldMap();
+    if (!worldMap) {
+        return;
+    }
     worldMap.displayOptions.diplomacyUnits = ScreepsAdapter.getSetting("diplomacyUnits", true);
 
     worldMap.toggleDiplomacyUnits = function () {

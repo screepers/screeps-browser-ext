@@ -25,6 +25,92 @@ interface MapButtonOptions {
     replacesUnits?: boolean;
 }
 
+/** One visible sector on the classic world map. */
+interface WorldMapSector {
+    id: number;
+    /** Room-grid origin `[x, y]`, or null when the slot is unused. */
+    pos: [x: number, y: number] | null;
+    /** Room name. Set at zoom 3, where a sector is a single room. */
+    name?: string;
+    /** Comma-separated room names. Set at zoom 1 and 2. */
+    rooms?: string;
+    firstRoomName?: string;
+    left?: number;
+    top?: number;
+}
+
+/**
+ * Per-room stats from `game/map-stats`.
+ */
+interface WorldMapRoomStats {
+    status?: string;
+    own?: { user: string; level: number };
+    sign?: { user?: string; text?: string; time?: number; datetime?: number };
+    hardSign?: { text?: string; time?: number; datetime?: number };
+    minerals0?: { type: string; density: number };
+    safeMode?: boolean | number;
+    novice?: number;
+    respawnArea?: number;
+    openTime?: number;
+    isPowerEnabled?: boolean;
+    [stat: string]: unknown;
+}
+
+/**
+ * Display options for the classic map view.
+ */
+interface WorldMapDisplayOptions {
+    layer: string;
+    units: boolean;
+    [flag: string]: unknown;
+}
+
+/**
+ * The classic map controller, aka `Top.WorldMap`.
+ */
+interface WorldMapController {
+    shard: string;
+    /** 1 = 20px rooms, 2 = 50px, 3 = 150px. */
+    zoom: 1 | 2 | 3;
+    /** Absolute tick from `game/map-stats`. Absent until the first stats response. */
+    gameTime?: number;
+
+    sectors: WorldMapSector[];
+    displayOptions: WorldMapDisplayOptions;
+    searchRoom: string;
+    /** Room names queued for the next `game/map-stats` request. */
+    updateRoomStats: string[];
+    roomStats: Record<string, WorldMapRoomStats>;
+    roomUsers: Record<string, {
+        username: string;
+        badge?: unknown;
+    }>;
+    /** Max value per stats layer, used to scale the owner circles. */
+    roomStatsMax: Record<string, number>;
+    respawnProhibitedRooms: Record<string, unknown>;
+    mapUrl: { base: string; zoom1: string; zoom2: string; query?: string };
+
+    startRoom: string[];
+    worldStartRoom: string[];
+    worldStatus: string;
+    resourceTypeNames: Record<string, string>;
+    densityNames: Record<number, string>;
+
+    now(): number;
+    zoomChange(delta: number): void;
+    toggleUnits(): boolean;
+    goToRoom(): void;
+    goToNewMap(): void;
+    getStatsCircleSize(value: number): number;
+    isRoomRespawnProhibited(roomName: string): boolean;
+
+    /** Installed by the adapter while the map button bar is active. */
+    getMapExtButtonRight?(id: string): { right?: string };
+    getMapExtLayerSelectStyle?(): { right: string };
+
+    [extension: string]: any;
+}
+
 declare var ScreepsAdapter: {
     VERSION: string;
     loadId: string;
@@ -94,6 +180,13 @@ declare var ScreepsAdapter: {
     registerMapButton(options: MapButtonOptions): void;
 
     /**
+     * Classic world map controller (`WorldMap`). Undefined when `.map-container` is not in the DOM.
+     */
+    getWorldMap(): WorldMapController | undefined;
+
+    getMapScope(): angular.IScope | undefined;
+
+    /**
      * Read a persisted setting. Booleans, numbers, objects, and arrays are coerced
      * back from their stored string form automatically.
      */
@@ -107,6 +200,7 @@ declare var ScreepsAdapter: {
     $location: {
         get $$absUrl(): string;
         url(url: string): void;
+        search(): { [key: string]: string | undefined };
     };
     $routeSegment: {
         name: string;
