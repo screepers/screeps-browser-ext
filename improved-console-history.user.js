@@ -2,18 +2,18 @@
 // @name        Screeps improved console history
 // @namespace   https://screeps.com/
 // @grant       none
-// @version     1.5.4
+// @version     1.6.0
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1791414172497
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1795358968010
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1791414172497
-// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1791414172497
+// @updateURL   https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1795358968010
+// @downloadURL https://screepers.github.io/screeps-browser-ext/improved-console-history.user.js?v=1795358968010
 // ==/UserScript==
 
 
@@ -38,20 +38,13 @@
  *   - added a `/help` command
  * - 1.5:
  *   - added a room navigation history tracking
+ * - 1.5.6:
+ *   - scrolling through history leaves the caret at the end of the line
+ * - 1.6:
+ *   - up/down history is filtered by the line you had started typing
  */
 
-const SICH_VERSION = "1.5.0";
-
-/**
- * Clamp a number between a min and max value (inclusive)
- * @param {number} val
- * @param {number} min
- * @param {number} max
- * @returns
- */
-function clamp(val, min, max) {
-    return Math.min(Math.max(val, min), max);
-}
+const SICH_VERSION = "1.6.0";
 
 /**
  * Polls every 50 milliseconds for a given condition
@@ -139,6 +132,22 @@ function parseInt(str, radix = 10) {
     let historyIdx = -1;
     /** The thing we were currently typing */
     let buffer = "";
+    /** Draft text used to filter history while scrolling. Empty matches every entry. */
+    let historyPrefix = "";
+
+    /**
+     * @param {string[]} history
+     * @param {number} from
+     * @param {number} delta
+     * @param {string} prefix
+     * @returns {number | null}
+     */
+    function nextHistoryIndex(history, from, delta, prefix) {
+        for (let i = from + delta; i >= 0 && i < history.length; i += delta) {
+            if (!prefix || history[i].startsWith(prefix)) return i;
+        }
+        return null;
+    }
 
     /**
      * List of single-letter "variables" that can be substituted on the fly into a command
@@ -156,6 +165,10 @@ function parseInt(str, radix = 10) {
         i: {
             desc: "Selected object id",
             get: () => `"${selectedObject()._id}"`,
+        },
+        o: {
+            desc: "Selected object",
+            get: () => `Game.getObjectById(${selectedObject()._id})`,
         },
         p: {
             desc: "Selected object position as x, y, \"room\"",
@@ -369,6 +382,7 @@ function parseInt(str, radix = 10) {
     function clearHistory() {
         historyIdx = -1;
         buffer = "";
+        historyPrefix = "";
         saveHistory([]);
         console.warn(`History cleared`);
     }
@@ -595,6 +609,7 @@ function parseInt(str, radix = 10) {
 
         saveHistory(history);
         historyIdx = -1; // Put us back down at the top of the stack
+        historyPrefix = "";
     }
 
     /** @type {NodeJS.Timeout} */
@@ -621,6 +636,44 @@ function parseInt(str, radix = 10) {
         // @ts-expect-error
         aceEditor.$enableSnippets = false;
 
+        /**
+         * Move the caret to the end of the console input.
+         * ui-ace reapplies the ng-model with `session.setValue`, which forces
+         * the selection back to column 0 after the change event.
+         */
+        function placeCaretAtEnd() {
+            aceEditor.navigateFileEnd();
+            aceEditor.renderer.scrollCursorIntoView();
+        }
+
+        /** Non-zero while a history recall is writing the editor, so that write is not treated as an edit. */
+        let historyApply = 0;
+        /** @type {string | null} Line last loaded from history or the draft. */
+        let shownEntry = null;
+
+        aceEditor.session.on("change", () => {
+            if (historyApply !== 0 || historyIdx === -1) return;
+            // ui-ace may set the same text again after our write; that is not an edit.
+            if (aceEditor.getValue() === shownEntry) return;
+            historyIdx = -1;
+            historyPrefix = "";
+            shownEntry = null;
+        });
+
+        /**
+         * @param {string} text
+         */
+        function setConsoleLine(text) {
+            const apply = ++historyApply;
+            shownEntry = text;
+            aceEditor.setValue(text, 1);
+            placeCaretAtEnd();
+            setTimeout(() => {
+                placeCaretAtEnd();
+                if (historyApply === apply) historyApply = 0;
+            }, 0);
+        }
+
         gameConsole.sendCommand = function() {
             let line = aceEditor.getValue();
             executeCommand(line);
@@ -636,33 +689,40 @@ function parseInt(str, radix = 10) {
                 const history = loadHistory();
                 if (!history.length) return;
                 const lastIdx = historyIdx;
-                if (isPrev) {
-                    historyIdx = clamp(++historyIdx, -1, history.length - 1);
-                } else {
-                    historyIdx = clamp(--historyIdx, -1, history.length - 1);
-                }
 
                 const value = aceEditor.getValue();
                 if (!isPrev && lastIdx === -1 && value === buffer) {
                     // We're at the "editing" entry but it was already restored; clear
                     console.warn("clearing buffer");
                     buffer = "";
-                    aceEditor.setValue(buffer);
+                    historyPrefix = "";
+                    setConsoleLine(buffer);
                     return;
-                } else if (!isPrev && lastIdx === 0) {
-                    // We're entering the "editing" entry; load it
-                    console.warn("restoring buffer");
-                    aceEditor.setValue(buffer);
-                    return;
-                } else if (isPrev && lastIdx === -1) {
+                }
+                if (isPrev && lastIdx === -1) {
                     // We're leaving the "editing" entry; save that
                     console.warn("saving buffer");
-                    buffer = aceEditor.getValue();
+                    buffer = value;
+                    historyPrefix = buffer;
                 }
 
+                const next = nextHistoryIndex(history, historyIdx, isPrev ? 1 : -1, historyPrefix);
+                if (next === null) {
+                    if (!isPrev && historyIdx !== -1) {
+                        // We're entering the "editing" entry; load it
+                        console.warn("restoring buffer");
+                        historyIdx = -1;
+                        setConsoleLine(buffer);
+                    } else {
+                        console.warn(`no history match for "${historyPrefix}"`);
+                    }
+                    return;
+                }
+
+                historyIdx = next;
                 const entry = history[historyIdx];
                 console.warn(`history entry #${historyIdx}: ${entry ?? "<typing>"}`);
-                aceEditor.setValue(entry, 1); // set and place cursor at the end
+                if (entry !== undefined) setConsoleLine(entry);
                 return;
             } else if (e.keyCode === 13) {
                 this.sendCommand();
