@@ -2,7 +2,7 @@
 // @name        Screeps improved console history
 // @namespace   https://screeps.com/
 // @grant       none
-// @version     1.5.5
+// @version     1.5.6
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
@@ -29,9 +29,11 @@
  *   - added a `/help` command
  * - 1.5:
  *   - added a room navigation history tracking
+ * - 1.5.6:
+ *   - scrolling through history leaves the caret at the end of the line
  */
 
-const SICH_VERSION = "1.5.5";
+const SICH_VERSION = "1.5.6";
 
 /**
  * Clamp a number between a min and max value (inclusive)
@@ -616,6 +618,25 @@ function parseInt(str, radix = 10) {
         // @ts-expect-error
         aceEditor.$enableSnippets = false;
 
+        /**
+         * Move the caret to the end of the console input.
+         * ui-ace reapplies the ng-model with `session.setValue`, which forces
+         * the selection back to column 0 after the change event.
+         */
+        function placeCaretAtEnd() {
+            aceEditor.navigateFileEnd();
+            aceEditor.renderer.scrollCursorIntoView();
+        }
+
+        /**
+         * @param {string} text
+         */
+        function setConsoleLine(text) {
+            aceEditor.setValue(text, 1);
+            placeCaretAtEnd();
+            setTimeout(placeCaretAtEnd, 0);
+        }
+
         gameConsole.sendCommand = function() {
             let line = aceEditor.getValue();
             executeCommand(line);
@@ -642,12 +663,12 @@ function parseInt(str, radix = 10) {
                     // We're at the "editing" entry but it was already restored; clear
                     console.warn("clearing buffer");
                     buffer = "";
-                    aceEditor.setValue(buffer);
+                    setConsoleLine(buffer);
                     return;
                 } else if (!isPrev && lastIdx === 0) {
                     // We're entering the "editing" entry; load it
                     console.warn("restoring buffer");
-                    aceEditor.setValue(buffer);
+                    setConsoleLine(buffer);
                     return;
                 } else if (isPrev && lastIdx === -1) {
                     // We're leaving the "editing" entry; save that
@@ -657,7 +678,7 @@ function parseInt(str, radix = 10) {
 
                 const entry = history[historyIdx];
                 console.warn(`history entry #${historyIdx}: ${entry ?? "<typing>"}`);
-                aceEditor.setValue(entry, 1); // set and place cursor at the end
+                if (entry !== undefined) setConsoleLine(entry);
                 return;
             } else if (e.keyCode === 13) {
                 this.sendCommand();
