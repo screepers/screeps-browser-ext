@@ -2,7 +2,7 @@
 // @name        Screeps improved console history
 // @namespace   https://screeps.com/
 // @grant       none
-// @version     1.5.4
+// @version     1.5.5
 // @author      -
 // @description Gives super-powers to the Console; history that survives across tabs and view changes, a couple @-variables linked to the viewer's state, etc.
 // @run-at      document-ready
@@ -31,7 +31,7 @@
  *   - added a room navigation history tracking
  */
 
-const SICH_VERSION = "1.5.0";
+const SICH_VERSION = "1.5.5";
 
 /**
  * Clamp a number between a min and max value (inclusive)
@@ -147,6 +147,10 @@ function parseInt(str, radix = 10) {
         i: {
             desc: "Selected object id",
             get: () => `"${selectedObject()._id}"`,
+        },
+        o: {
+            desc: "Selected object",
+            get: () => `Game.getObjectById(${selectedObject()._id})`,
         },
         p: {
             desc: "Selected object position as x, y, \"room\"",
