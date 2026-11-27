@@ -229,7 +229,7 @@ function generateIndex(userscriptFiles) {
     </ul>
 
     <div class="footer">
-        <p>These userscripts require <a href="${repoUrl}/screeps-browser-core.js">screeps-browser-core.js</a> to function. Alpha map scripts also require <a href="${repoUrl}/screeps-alpha-map.js">screeps-alpha-map.js</a>.</p>
+        <p>These userscripts require <a href="${repoUrl}/screeps-browser-core.js">screeps-browser-core.js</a> to function. Alpha map scripts also require <a href="${repoUrl}/screeps-alpha-map.js">screeps-alpha-map.js</a>. Map overlays that estimate tick timing also require <a href="${repoUrl}/screeps-game-time.js">screeps-game-time.js</a>.</p>
     </div>
 </body>
 </html>`;
@@ -240,7 +240,7 @@ function generateIndex(userscriptFiles) {
 }
 
 // Copy library files to public/
-const LIBRARY_FILES = ["screeps-browser-core.js", "screeps-alpha-map.js"];
+const LIBRARY_FILES = ["screeps-browser-core.js", "screeps-alpha-map.js", "screeps-game-time.js"];
 
 function copyLibraryFiles() {
     let copied = 0;

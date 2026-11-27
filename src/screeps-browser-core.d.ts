@@ -238,6 +238,7 @@ declare var ScreepsAdapter: {
         _id: string;
     };
     AlphaMap: AlphaMap.AlphaMapAdapter;
+    GameTime: GameTime.GameTimeAdapter;
 };
 
 declare var DomHelper: {
