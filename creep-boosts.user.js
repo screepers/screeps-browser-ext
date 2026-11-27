@@ -6,14 +6,14 @@
 // @description Show which creep parts are boosted, on the room view and in the inspector
 // @run-at      document-ready
 // @grant       none
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1795358968009
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1795811856500
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/creep-boosts.user.js?v=1795358968009
-// @downloadURL https://screepers.github.io/screeps-browser-ext/creep-boosts.user.js?v=1795358968009
+// @updateURL   https://screepers.github.io/screeps-browser-ext/creep-boosts.user.js?v=1795811856500
+// @downloadURL https://screepers.github.io/screeps-browser-ext/creep-boosts.user.js?v=1795811856500
 // ==/UserScript==
 
 

@@ -5,15 +5,16 @@
 // @author      Etienne Samson
 // @description Draw in-flight nukes on the world map
 // @run-at      document-ready
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1795358968011
-// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1795358968011
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-browser-core.js?v=1795811856503
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-game-time.js?v=1795811856503
+// @require     https://screepers.github.io/screeps-browser-ext/screeps-alpha-map.js?v=1795811856503
 // @match       https://screeps.com/a/*
 // @match       https://screeps.com/ptr/*
 // @match       https://screeps.com/season/*
 // @include     /^http://[^/]*?\.localhost:[^/]*?/\(.*?\)/.*?$/
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=screeps.com
-// @updateURL   https://screepers.github.io/screeps-browser-ext/nuke-overlay.user.js?v=1795358968011
-// @downloadURL https://screepers.github.io/screeps-browser-ext/nuke-overlay.user.js?v=1795358968011
+// @updateURL   https://screepers.github.io/screeps-browser-ext/nuke-overlay.user.js?v=1795811856503
+// @downloadURL https://screepers.github.io/screeps-browser-ext/nuke-overlay.user.js?v=1795811856503
 // ==/UserScript==
 
 
@@ -22,13 +23,6 @@
     /** Official `NUKE_LAND_TIME`. The experimental nukes API does not include a launch tick. */
     const NUKE_LAND_TIME = 50000;
     const POLL_MS = 20000;
-    /** How often to sample `game/time` for the shard's tick rate. */
-    const TIME_POLL_MS = 5000;
-    /** Samples older than this fall out of the rate window. */
-    const RATE_WINDOW_MS = 2 * 60 * 1000;
-    /** Need a real gap and at least two ticks before trusting a landing time. */
-    const MIN_RATE_SPAN_MS = 4000;
-    const MIN_RATE_TICKS = 2;
     const HOVER_PX = 10;
     /** Dash pattern `[dot, gap]`. One full period marches toward the target per `DASH_PERIOD_MS`. */
     const DASH = [0.01, 7];
@@ -40,18 +34,14 @@
     /** @type {Record<string, Nuke[]>} */
     let nukesByShard = {};
 
-    /** @type {Record<string, number>} */
-    let timeByShard = {};
-
     /**
-     * Fresh `(tick, wall-clock)` pairs per shard, used to estimate ticks per millisecond.
-     * @type {Record<string, { tick: number, at: number }[]>}
+     * Last tick already applied to the map inspector, per shard.
+     * @type {Record<string, number>}
      */
-    let timeSamples = {};
+    const notedTick = {};
 
     let nukesLoaded = false;
     let nukesErrorLogged = false;
-    let timeErrorLogged = false;
     let running = false;
     /** @type {number} */
     let pollTimer = 0;
@@ -96,93 +86,6 @@
     }
 
     /**
-     * @param {string} shard
-     * @param {number} tick
-     */
-    function pushTimeSample(shard, tick) {
-        const now = Date.now();
-        const samples = timeSamples[shard] ??= [];
-        const last = samples[samples.length - 1];
-        if (last && tick < last.tick) {
-            samples.length = 0;
-        }
-        const current = samples[samples.length - 1];
-        if (current && current.tick === tick) {
-            current.at = now;
-        } else {
-            samples.push({ tick, at: now });
-        }
-        const cutoff = now - RATE_WINDOW_MS;
-        while (samples.length > 2 && samples[0].at < cutoff) {
-            samples.shift();
-        }
-    }
-
-    /**
-     * Wall-clock landing time for `landTime`, or null until the shard's rate is known.
-     * Anchored to the newest sample so a stale remaining count does not drift the clock.
-     * @param {string} shard
-     * @param {number} landTime
-     * @returns {number | null}
-     */
-    function landingWallTime(shard, landTime) {
-        const samples = timeSamples[shard];
-        if (!samples || samples.length < 2) {
-            return null;
-        }
-        const first = samples[0];
-        const last = samples[samples.length - 1];
-        const dt = last.at - first.at;
-        const ticks = last.tick - first.tick;
-        if (dt < MIN_RATE_SPAN_MS || ticks < MIN_RATE_TICKS) {
-            return null;
-        }
-        const remaining = landTime - last.tick;
-        if (remaining <= 0) {
-            return null;
-        }
-        return last.at + remaining * (dt / ticks);
-    }
-
-    const DAY_MS = 24 * 60 * 60 * 1000;
-
-    /**
-     * @param {number} ms
-     */
-    function formatCountdown(ms) {
-        const total = Math.max(0, Math.ceil(ms / 1000));
-        const hours = Math.floor(total / 3600);
-        const minutes = Math.floor((total % 3600) / 60);
-        const seconds = total % 60;
-        const ss = String(seconds).padStart(2, "0");
-        const mm = String(minutes).padStart(2, "0");
-        if (hours > 0) {
-            return `${hours}h ${mm}m ${ss}s`;
-        }
-        if (minutes > 0) {
-            return `${minutes}m ${ss}s`;
-        }
-        return `${seconds}s`;
-    }
-
-    /**
-     * Clock time when the landing is more than a day out, otherwise a countdown.
-     * @param {number} at
-     */
-    function formatRemainingTime(at) {
-        const remainingMs = at - Date.now();
-        if (remainingMs > DAY_MS) {
-            return new Date(at).toLocaleString(undefined, {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-            });
-        }
-        return formatCountdown(remainingMs);
-    }
-
-    /**
      * @param {ParentNode} root
      * @param {Flight} flight
      */
@@ -192,14 +95,14 @@
         const eta = root.querySelector(".nuke-path-eta");
         const landing = root.querySelector(".nuke-path-landing");
         const ticks = flight.remaining.toLocaleString();
-        const at = shard ? landingWallTime(shard, flight.nuke.landTime) : null;
+        const at = shard ? ScreepsAdapter.GameTime.wallTime(shard, flight.nuke.landTime) : null;
         if (title) {
             title.textContent = `Nuke ${flight.nuke.launchRoomName} → ${flight.nuke.room}`;
         }
         if (eta) {
             eta.textContent = at === null
                 ? `ETA: ${ticks} ticks`
-                : `ETA: ${ticks} ticks (~${formatRemainingTime(at)})`;
+                : `ETA: ${ticks} ticks (~${ScreepsAdapter.GameTime.formatRemainingTime(at)})`;
         }
         if (landing) {
             landing.textContent = `Landing at: ${flight.nuke.x}, ${flight.nuke.y}`;
@@ -207,27 +110,26 @@
     }
 
     /**
+     * Shared samples advance even when another overlay noted the tick first, so compare against our own cursor.
      * @param {string} shard
-     * @param {unknown} time
-     * @param {boolean} [fresh] True for a response just received. The first map `gameTime` is often stale, so it only joins the rate window after a live sample exists.
+     */
+    function pokeIfTickAdvanced(shard) {
+        const tick = ScreepsAdapter.GameTime.tick(shard);
+        if (typeof tick !== "number" || tick <= (notedTick[shard] ?? 0)) {
+            return;
+        }
+        notedTick[shard] = tick;
+        pokeClassicInspector();
+    }
+
+    /**
+     * @param {string} shard
+     * @param {number | undefined} time
+     * @param {boolean} [fresh]
      */
     function noteTime(shard, time, fresh = false) {
-        const tick = Number(time);
-        if (!shard || !Number.isFinite(tick) || tick <= 0) {
-            return;
-        }
-        const prev = timeByShard[shard] ?? 0;
-        if (tick < prev) {
-            return;
-        }
-        const watched = (timeSamples[shard]?.length ?? 0) > 0;
-        if (fresh || (tick > prev && watched)) {
-            pushTimeSample(shard, tick);
-        }
-        if (tick > prev) {
-            timeByShard[shard] = tick;
-            pokeClassicInspector();
-        }
+        ScreepsAdapter.GameTime.note(shard, time, fresh);
+        pokeIfTickAdvanced(shard);
     }
 
     async function refreshNukes() {
@@ -250,18 +152,12 @@
     /**
      * @param {string} shard
      */
+    /**
+     * @param {string} shard
+     */
     async function refreshTime(shard) {
-        try {
-            const data = await ScreepsAdapter.Api.get("game/time", { shard });
-            if (data?.ok) {
-                noteTime(shard, data.time, true);
-            }
-        } catch (err) {
-            if (!timeErrorLogged) {
-                timeErrorLogged = true;
-                console.warn("nuke overlay: failed to load game time", err);
-            }
-        }
+        await ScreepsAdapter.GameTime.refresh(shard);
+        pokeIfTickAdvanced(shard);
     }
 
     async function pollNukes() {
@@ -341,7 +237,7 @@
 
     function ensureFlightIndex() {
         const shard = currentShard();
-        const time = shard ? timeByShard[shard] : undefined;
+        const time = shard ? ScreepsAdapter.GameTime.tick(shard) : undefined;
         const key = `${shard}|${time}|${nukeEpoch}`;
         if (key === flightsKey) {
             return;
@@ -706,7 +602,7 @@
                 void refreshTime(shard);
             }
 
-            const time = timeByShard[shard];
+            const time = ScreepsAdapter.GameTime.tick(shard);
             const nukes = nukesByShard[shard];
             if (!nukes?.length) {
                 return;
@@ -721,7 +617,7 @@
                 }
             }
 
-            /** @type {Array<Flight & { launchPx: Point, impactPx: Point, rocketPx: Point }>} */
+            /** @type {(Flight & { launchPx: Point, impactPx: Point, rocketPx: Point })[]} */
             const screen = [];
             for (const flight of flights) {
                 const launchPx = project(flight.launch.x, flight.launch.y);
@@ -810,7 +706,7 @@
         }, POLL_MS);
         timeTimer = window.setInterval(() => {
             void pollTime();
-        }, TIME_POLL_MS);
+        }, ScreepsAdapter.GameTime.POLL_MS);
         raf = requestAnimationFrame(frame);
     }
 
